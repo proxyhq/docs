@@ -63,9 +63,196 @@
     }
   ],
   "paths": {
+    "/kyc/applications": {
+      "get": {
+        "tags": [
+          "KYC"
+        ],
+        "summary": "List KYC applications",
+        "description": "Retrieve KYC applications for a customer.",
+        "operationId": "listKycApplications",
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "query",
+            "required": true,
+            "description": "Customer ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of applications",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/KycApplication"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "KYC"
+        ],
+        "summary": "Create a KYC application",
+        "description": "Submit a new KYC application for a customer.",
+        "operationId": "createKycApplication",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateKycApplicationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Application created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KycApplication"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/kyc/applications/{applicationId}": {
+      "get": {
+        "tags": [
+          "KYC"
+        ],
+        "summary": "Get a KYC application",
+        "description": "Retrieve a KYC application by ID.",
+        "operationId": "getKycApplication",
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Application details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KycApplication"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "KYC"
+        ],
+        "summary": "Update a KYC application",
+        "description": "Update a KYC application with additional information.",
+        "operationId": "updateKycApplication",
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "description": "Application update data"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Application updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KycApplication"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/customers": {
       "get": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "List customers",
         "description": "Retrieve a paginated list of all customers.",
         "operationId": "listCustomers",
@@ -97,7 +284,9 @@
                       "description": "Cursor for the next page of results"
                     }
                   },
-                  "required": ["data"]
+                  "required": [
+                    "data"
+                  ]
                 }
               }
             }
@@ -108,7 +297,9 @@
         }
       },
       "post": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Create a customer",
         "description": "Create a new customer record.",
         "operationId": "createCustomer",
@@ -149,7 +340,9 @@
     },
     "/customers/{customerId}": {
       "get": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Get a customer",
         "description": "Retrieve a customer by ID.",
         "operationId": "getCustomer",
@@ -178,7 +371,9 @@
         }
       },
       "patch": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Update a customer",
         "description": "Update customer details.",
         "operationId": "updateCustomer",
@@ -223,7 +418,9 @@
         }
       },
       "delete": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Delete a customer",
         "description": "Soft-delete a customer. Sets status to deleted.",
         "operationId": "deleteCustomer",
@@ -255,71 +452,11 @@
         }
       }
     },
-    "/customers/{customerId}/balances": {
-      "get": {
-        "tags": ["Balances"],
-        "summary": "Get customer balances",
-        "description": "Retrieve the balance information for a customer.",
-        "operationId": "getCustomerBalances",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/CustomerId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Balance information",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Balance"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/customers/{customerId}/funding-instructions": {
-      "get": {
-        "tags": ["Balances"],
-        "summary": "Get funding instructions",
-        "description": "Retrieve deposit address and instructions for funding a customer account.",
-        "operationId": "getFundingInstructions",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/CustomerId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Funding instructions",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FundingInstructions"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
     "/agents": {
       "get": {
-        "tags": ["Agents"],
+        "tags": [
+          "Agents"
+        ],
         "summary": "List agents",
         "description": "Retrieve a paginated list of agents, optionally filtered by customer.",
         "operationId": "listAgents",
@@ -358,7 +495,9 @@
                       "nullable": true
                     }
                   },
-                  "required": ["data"]
+                  "required": [
+                    "data"
+                  ]
                 }
               }
             }
@@ -369,7 +508,9 @@
         }
       },
       "post": {
-        "tags": ["Agents"],
+        "tags": [
+          "Agents"
+        ],
         "summary": "Create or register an agent",
         "description": "Create a new agent or register an existing one by externalId (idempotent by externalId).",
         "operationId": "createAgent",
@@ -410,7 +551,9 @@
     },
     "/agents/{agentId}": {
       "get": {
-        "tags": ["Agents"],
+        "tags": [
+          "Agents"
+        ],
         "summary": "Get an agent",
         "description": "Retrieve an agent by ID.",
         "operationId": "getAgent",
@@ -439,7 +582,9 @@
         }
       },
       "patch": {
-        "tags": ["Agents"],
+        "tags": [
+          "Agents"
+        ],
         "summary": "Update an agent",
         "description": "Update agent details, status, limits, or policy.",
         "operationId": "updateAgent",
@@ -484,7 +629,9 @@
         }
       },
       "delete": {
-        "tags": ["Agents"],
+        "tags": [
+          "Agents"
+        ],
         "summary": "Delete an agent",
         "description": "Soft-delete an agent. Sets status to disabled.",
         "operationId": "deleteAgent",
@@ -518,7 +665,9 @@
     },
     "/cards": {
       "get": {
-        "tags": ["Cards"],
+        "tags": [
+          "Cards"
+        ],
         "summary": "List cards",
         "description": "Retrieve a paginated list of cards, optionally filtered by customer or agent.",
         "operationId": "listCards",
@@ -565,7 +714,9 @@
                       "nullable": true
                     }
                   },
-                  "required": ["data"]
+                  "required": [
+                    "data"
+                  ]
                 }
               }
             }
@@ -576,7 +727,9 @@
         }
       },
       "post": {
-        "tags": ["Cards"],
+        "tags": [
+          "Cards"
+        ],
         "summary": "Create a card",
         "description": "Issue a new virtual or physical card for a customer.",
         "operationId": "createCard",
@@ -617,7 +770,9 @@
     },
     "/cards/{cardId}": {
       "get": {
-        "tags": ["Cards"],
+        "tags": [
+          "Cards"
+        ],
         "summary": "Get a card",
         "description": "Retrieve card details by ID.",
         "operationId": "getCard",
@@ -646,7 +801,9 @@
         }
       },
       "patch": {
-        "tags": ["Cards"],
+        "tags": [
+          "Cards"
+        ],
         "summary": "Update a card",
         "description": "Update card status, limits, billing, or policy.",
         "operationId": "updateCard",
@@ -691,7 +848,9 @@
         }
       },
       "delete": {
-        "tags": ["Cards"],
+        "tags": [
+          "Cards"
+        ],
         "summary": "Close a card",
         "description": "Cancel/close a card. The card will no longer be usable for transactions.",
         "operationId": "deleteCard",
@@ -723,9 +882,223 @@
         }
       }
     },
+    "/cards/{cardId}/details": {
+      "post": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Get card details (PAN, CVV)",
+        "description": "Retrieve sensitive card details (PAN, CVV) after policy evaluation. Requires intent if policy mandates it.",
+        "operationId": "getCardDetails",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CardId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Card details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Access denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "reasons": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PolicyReason"
+                      }
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "reasons"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/cards/{cardId}/policy": {
+      "get": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Get card policy summary",
+        "description": "Retrieve the resolved policy, spend limits, TTL, and cooldown status for a card.",
+        "operationId": "getCardPolicy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CardId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Policy summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardPolicySummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/cards/{cardId}/freeze": {
+      "post": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Freeze a card",
+        "description": "Temporarily freeze a card. The card cannot be used for transactions until unfrozen.",
+        "operationId": "freezeCard",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CardId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Card frozen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Card"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/cards/{cardId}/unfreeze": {
+      "post": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Unfreeze a card",
+        "description": "Reactivate a frozen card.",
+        "operationId": "unfreezeCard",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CardId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Card unfrozen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Card"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/cards/{cardId}/replace": {
+      "post": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Replace a card",
+        "description": "Replace a virtual card with new credentials (new PAN/CVV).",
+        "operationId": "replaceCard",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CardId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "New card created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Card"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/cards/{cardId}/intents": {
       "get": {
-        "tags": ["Intents"],
+        "tags": [
+          "Intents"
+        ],
         "summary": "List card intents",
         "description": "Retrieve intents associated with a card.",
         "operationId": "listCardIntents",
@@ -755,7 +1128,10 @@
                       }
                     }
                   },
-                  "required": ["cardId", "intents"]
+                  "required": [
+                    "cardId",
+                    "intents"
+                  ]
                 }
               }
             }
@@ -769,7 +1145,9 @@
         }
       },
       "post": {
-        "tags": ["Intents"],
+        "tags": [
+          "Intents"
+        ],
         "summary": "Create an intent",
         "description": "Declare an intent to spend before accessing card credentials.",
         "operationId": "createIntent",
@@ -814,308 +1192,11 @@
         }
       }
     },
-    "/cards/{cardId}/access-events": {
-      "get": {
-        "tags": ["Access Events"],
-        "summary": "List card access events",
-        "description": "Retrieve access events (credential access grants) for a card.",
-        "operationId": "listCardAccessEvents",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/CardId"
-          },
-          {
-            "$ref": "#/components/parameters/Limit"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of access events",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "cardId": {
-                      "type": "string"
-                    },
-                    "accessEvents": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/AccessEvent"
-                      }
-                    }
-                  },
-                  "required": ["cardId", "accessEvents"]
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/cards/{cardId}/access": {
-      "post": {
-        "tags": ["Access Events"],
-        "summary": "Request card access",
-        "description": "Request access to card credentials. Returns granted/denied status based on policy evaluation.",
-        "operationId": "requestCardAccess",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/CardId"
-          },
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AccessRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Access granted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccessResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Access denied",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccessResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/cards/{cardId}/details": {
-      "post": {
-        "tags": ["Cards"],
-        "summary": "Get card details (PAN, CVV)",
-        "description": "Retrieve sensitive card details (PAN, CVV) after policy evaluation. Requires intent if policy mandates it.",
-        "operationId": "getCardDetails",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/CardId"
-          },
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AccessRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Card details",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CardDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Access denied",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "reasons": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/PolicyReason"
-                      }
-                    }
-                  },
-                  "required": ["error", "reasons"]
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/cards/{cardId}/policy": {
-      "get": {
-        "tags": ["Cards"],
-        "summary": "Get card policy summary",
-        "description": "Retrieve the resolved policy, spend limits, TTL, and cooldown status for a card.",
-        "operationId": "getCardPolicy",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/CardId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Policy summary",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CardPolicySummary"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/cards/{cardId}/freeze": {
-      "post": {
-        "tags": ["Cards"],
-        "summary": "Freeze a card",
-        "description": "Temporarily freeze a card. The card cannot be used for transactions until unfrozen.",
-        "operationId": "freezeCard",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/CardId"
-          },
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Card frozen",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Card"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/cards/{cardId}/unfreeze": {
-      "post": {
-        "tags": ["Cards"],
-        "summary": "Unfreeze a card",
-        "description": "Reactivate a frozen card.",
-        "operationId": "unfreezeCard",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/CardId"
-          },
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Card unfrozen",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Card"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/cards/{cardId}/replace": {
-      "post": {
-        "tags": ["Cards"],
-        "summary": "Replace a card",
-        "description": "Replace a virtual card with new credentials (new PAN/CVV).",
-        "operationId": "replaceCard",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/CardId"
-          },
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "New card created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Card"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
     "/intents/{intentId}": {
       "get": {
-        "tags": ["Intents"],
+        "tags": [
+          "Intents"
+        ],
         "summary": "Get an intent",
         "description": "Retrieve an intent by ID.",
         "operationId": "getIntent",
@@ -1144,7 +1225,9 @@
         }
       },
       "delete": {
-        "tags": ["Intents"],
+        "tags": [
+          "Intents"
+        ],
         "summary": "Cancel an intent",
         "description": "Cancel/delete a pending intent.",
         "operationId": "deleteIntent",
@@ -1178,7 +1261,9 @@
     },
     "/intents/{intentId}/approve": {
       "post": {
-        "tags": ["Intents"],
+        "tags": [
+          "Intents"
+        ],
         "summary": "Approve an intent",
         "description": "Approve a pending_approval intent, allowing the associated transaction to proceed.",
         "operationId": "approveIntent",
@@ -1215,7 +1300,9 @@
     },
     "/intents/{intentId}/reject": {
       "post": {
-        "tags": ["Intents"],
+        "tags": [
+          "Intents"
+        ],
         "summary": "Reject an intent",
         "description": "Reject a pending_approval intent.",
         "operationId": "rejectIntent",
@@ -1268,7 +1355,9 @@
     },
     "/intents/{intentId}/findings": {
       "get": {
-        "tags": ["Intents"],
+        "tags": [
+          "Intents"
+        ],
         "summary": "Get intent findings",
         "description": "Retrieve policy findings/analysis for an intent.",
         "operationId": "getIntentFindings",
@@ -1292,7 +1381,9 @@
                       }
                     }
                   },
-                  "required": ["data"]
+                  "required": [
+                    "data"
+                  ]
                 }
               }
             }
@@ -1306,9 +1397,156 @@
         }
       }
     },
+    "/spend/evaluate": {
+      "post": {
+        "tags": [
+          "Spend"
+        ],
+        "summary": "Evaluate spend policy",
+        "description": "Evaluate whether a proposed spend would be approved based on current policy rules.",
+        "operationId": "evaluateSpendPolicy",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluateSpendRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Policy evaluation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluateSpendResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/cards/{cardId}/access-events": {
+      "get": {
+        "tags": [
+          "Access Events"
+        ],
+        "summary": "List card access events",
+        "description": "Retrieve access events (credential access grants) for a card.",
+        "operationId": "listCardAccessEvents",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CardId"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of access events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cardId": {
+                      "type": "string"
+                    },
+                    "accessEvents": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AccessEvent"
+                      }
+                    }
+                  },
+                  "required": [
+                    "cardId",
+                    "accessEvents"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/cards/{cardId}/access": {
+      "post": {
+        "tags": [
+          "Access Events"
+        ],
+        "summary": "Request card access",
+        "description": "Request access to card credentials. Returns granted/denied status based on policy evaluation.",
+        "operationId": "requestCardAccess",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CardId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Access granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Access denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/access-events/{accessEventId}": {
       "get": {
-        "tags": ["Access Events"],
+        "tags": [
+          "Access Events"
+        ],
         "summary": "Get an access event",
         "description": "Retrieve an access event by ID.",
         "operationId": "getAccessEvent",
@@ -1345,7 +1583,9 @@
     },
     "/transactions": {
       "get": {
-        "tags": ["Transactions"],
+        "tags": [
+          "Transactions"
+        ],
         "summary": "List transactions",
         "description": "Retrieve a paginated list of transactions, optionally filtered by customer, agent, or card.",
         "operationId": "listTransactions",
@@ -1400,7 +1640,9 @@
                       "nullable": true
                     }
                   },
-                  "required": ["data"]
+                  "required": [
+                    "data"
+                  ]
                 }
               }
             }
@@ -1413,7 +1655,9 @@
     },
     "/transactions/{transactionId}": {
       "get": {
-        "tags": ["Transactions"],
+        "tags": [
+          "Transactions"
+        ],
         "summary": "Get a transaction",
         "description": "Retrieve a transaction by ID.",
         "operationId": "getTransaction",
@@ -1442,7 +1686,9 @@
         }
       },
       "patch": {
-        "tags": ["Transactions"],
+        "tags": [
+          "Transactions"
+        ],
         "summary": "Update a transaction",
         "description": "Update transaction memo.",
         "operationId": "updateTransaction",
@@ -1493,9 +1739,157 @@
         }
       }
     },
+    "/disputes": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "List disputes",
+        "description": "Retrieve a list of disputes.",
+        "operationId": "listDisputes",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of disputes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Dispute"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/disputes/{disputeId}": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Get a dispute",
+        "description": "Retrieve a dispute by ID.",
+        "operationId": "getDispute",
+        "parameters": [
+          {
+            "name": "disputeId",
+            "in": "path",
+            "required": true,
+            "description": "Dispute ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dispute details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dispute"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/customers/{customerId}/balances": {
+      "get": {
+        "tags": [
+          "Balances"
+        ],
+        "summary": "Get customer balances",
+        "description": "Retrieve the balance information for a customer.",
+        "operationId": "getCustomerBalances",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CustomerId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Balance information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Balance"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/customers/{customerId}/funding-instructions": {
+      "get": {
+        "tags": [
+          "Balances"
+        ],
+        "summary": "Get funding instructions",
+        "description": "Retrieve deposit address and instructions for funding a customer account.",
+        "operationId": "getFundingInstructions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CustomerId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Funding instructions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FundingInstructions"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/webhooks": {
       "get": {
-        "tags": ["Webhooks"],
+        "tags": [
+          "Webhooks"
+        ],
         "summary": "List webhook subscriptions",
         "description": "Retrieve all configured webhook subscriptions.",
         "operationId": "listWebhooks",
@@ -1514,7 +1908,9 @@
                       }
                     }
                   },
-                  "required": ["data"]
+                  "required": [
+                    "data"
+                  ]
                 }
               }
             }
@@ -1525,7 +1921,9 @@
         }
       },
       "post": {
-        "tags": ["Webhooks"],
+        "tags": [
+          "Webhooks"
+        ],
         "summary": "Create or update a webhook",
         "description": "Create a new webhook subscription or update an existing one (if id is provided).",
         "operationId": "createWebhook",
@@ -1576,7 +1974,9 @@
     },
     "/webhooks/{webhookId}": {
       "get": {
-        "tags": ["Webhooks"],
+        "tags": [
+          "Webhooks"
+        ],
         "summary": "Get a webhook",
         "description": "Retrieve a webhook subscription by ID.",
         "operationId": "getWebhook",
@@ -1605,7 +2005,9 @@
         }
       },
       "delete": {
-        "tags": ["Webhooks"],
+        "tags": [
+          "Webhooks"
+        ],
         "summary": "Delete a webhook",
         "description": "Disable a webhook subscription.",
         "operationId": "deleteWebhook",
@@ -1633,291 +2035,6 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/kyc/applications": {
-      "get": {
-        "tags": ["KYC"],
-        "summary": "List KYC applications",
-        "description": "Retrieve KYC applications for a customer.",
-        "operationId": "listKycApplications",
-        "parameters": [
-          {
-            "name": "customerId",
-            "in": "query",
-            "required": true,
-            "description": "Customer ID",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of applications",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/KycApplication"
-                      }
-                    }
-                  },
-                  "required": ["data"]
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      },
-      "post": {
-        "tags": ["KYC"],
-        "summary": "Create a KYC application",
-        "description": "Submit a new KYC application for a customer.",
-        "operationId": "createKycApplication",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateKycApplicationRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Application created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/KycApplication"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/kyc/applications/{applicationId}": {
-      "get": {
-        "tags": ["KYC"],
-        "summary": "Get a KYC application",
-        "description": "Retrieve a KYC application by ID.",
-        "operationId": "getKycApplication",
-        "parameters": [
-          {
-            "name": "applicationId",
-            "in": "path",
-            "required": true,
-            "description": "Application ID",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Application details",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/KycApplication"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      },
-      "patch": {
-        "tags": ["KYC"],
-        "summary": "Update a KYC application",
-        "description": "Update a KYC application with additional information.",
-        "operationId": "updateKycApplication",
-        "parameters": [
-          {
-            "name": "applicationId",
-            "in": "path",
-            "required": true,
-            "description": "Application ID",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true,
-                "description": "Application update data"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Application updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/KycApplication"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/disputes": {
-      "get": {
-        "tags": ["Transactions"],
-        "summary": "List disputes",
-        "description": "Retrieve a list of disputes.",
-        "operationId": "listDisputes",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/Limit"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of disputes",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Dispute"
-                      }
-                    }
-                  },
-                  "required": ["data"]
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/disputes/{disputeId}": {
-      "get": {
-        "tags": ["Transactions"],
-        "summary": "Get a dispute",
-        "description": "Retrieve a dispute by ID.",
-        "operationId": "getDispute",
-        "parameters": [
-          {
-            "name": "disputeId",
-            "in": "path",
-            "required": true,
-            "description": "Dispute ID",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Dispute details",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Dispute"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/spend/evaluate": {
-      "post": {
-        "tags": ["Spend"],
-        "summary": "Evaluate spend policy",
-        "description": "Evaluate whether a proposed spend would be approved based on current policy rules.",
-        "operationId": "evaluateSpendPolicy",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EvaluateSpendRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Policy evaluation result",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EvaluateSpendResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
           }
         }
       }
@@ -2075,12 +2192,17 @@
                     "nullable": true
                   }
                 },
-                "required": ["code", "message"]
+                "required": [
+                  "code",
+                  "message"
+                ]
               }
             ]
           }
         },
-        "required": ["error"]
+        "required": [
+          "error"
+        ]
       },
       "Policy": {
         "type": "object",
@@ -2179,7 +2301,10 @@
             "description": "Limit interval (e.g., daily, weekly, monthly, all_time, per_authorization)"
           }
         },
-        "required": ["amount", "currency"]
+        "required": [
+          "amount",
+          "currency"
+        ]
       },
       "Customer": {
         "type": "object",
@@ -2190,12 +2315,19 @@
           },
           "type": {
             "type": "string",
-            "enum": ["consumer", "corporate"],
+            "enum": [
+              "consumer",
+              "corporate"
+            ],
             "description": "Customer type"
           },
           "status": {
             "type": "string",
-            "enum": ["pending", "active", "deleted"],
+            "enum": [
+              "pending",
+              "active",
+              "deleted"
+            ],
             "description": "Customer status"
           },
           "email": {
@@ -2235,14 +2367,21 @@
             "nullable": true
           }
         },
-        "required": ["id", "type", "status"]
+        "required": [
+          "id",
+          "type",
+          "status"
+        ]
       },
       "CreateCustomerRequest": {
         "type": "object",
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["consumer", "corporate"],
+            "enum": [
+              "consumer",
+              "corporate"
+            ],
             "description": "Customer type"
           },
           "email": {
@@ -2325,7 +2464,11 @@
           },
           "status": {
             "type": "string",
-            "enum": ["active", "paused", "disabled"],
+            "enum": [
+              "active",
+              "paused",
+              "disabled"
+            ],
             "description": "Agent status"
           },
           "limits": {
@@ -2344,11 +2487,18 @@
             "nullable": true
           }
         },
-        "required": ["id", "name", "status"]
+        "required": [
+          "id",
+          "name",
+          "status"
+        ]
       },
       "CreateAgentRequest": {
         "type": "object",
-        "required": ["customerId", "externalId"],
+        "required": [
+          "customerId",
+          "externalId"
+        ],
         "properties": {
           "customerId": {
             "type": "string",
@@ -2364,7 +2514,11 @@
           },
           "status": {
             "type": "string",
-            "enum": ["active", "paused", "disabled"]
+            "enum": [
+              "active",
+              "paused",
+              "disabled"
+            ]
           },
           "limits": {
             "$ref": "#/components/schemas/SpendingLimit"
@@ -2386,7 +2540,11 @@
           },
           "status": {
             "type": "string",
-            "enum": ["active", "paused", "disabled"]
+            "enum": [
+              "active",
+              "paused",
+              "disabled"
+            ]
           },
           "limits": {
             "$ref": "#/components/schemas/SpendingLimit"
@@ -2419,12 +2577,18 @@
           },
           "type": {
             "type": "string",
-            "enum": ["virtual", "physical"],
+            "enum": [
+              "virtual",
+              "physical"
+            ],
             "description": "Card type"
           },
           "usage": {
             "type": "string",
-            "enum": ["single", "multi"],
+            "enum": [
+              "single",
+              "multi"
+            ],
             "description": "Single-use or multi-use card"
           },
           "status": {
@@ -2485,11 +2649,15 @@
             "nullable": true
           }
         },
-        "required": ["id"]
+        "required": [
+          "id"
+        ]
       },
       "CreateCardRequest": {
         "type": "object",
-        "required": ["customerId"],
+        "required": [
+          "customerId"
+        ],
         "properties": {
           "customerId": {
             "type": "string",
@@ -2501,12 +2669,18 @@
           },
           "type": {
             "type": "string",
-            "enum": ["virtual", "physical"],
+            "enum": [
+              "virtual",
+              "physical"
+            ],
             "default": "virtual"
           },
           "usage": {
             "type": "string",
-            "enum": ["single", "multi"],
+            "enum": [
+              "single",
+              "multi"
+            ],
             "default": "multi",
             "description": "Single-use or multi-use card"
           },
@@ -2543,7 +2717,10 @@
           },
           "usage": {
             "type": "string",
-            "enum": ["single", "multi"]
+            "enum": [
+              "single",
+              "multi"
+            ]
           },
           "limits": {
             "$ref": "#/components/schemas/SpendingLimit"
@@ -2587,7 +2764,10 @@
             "$ref": "#/components/schemas/Policy"
           }
         },
-        "required": ["pan", "cvv"]
+        "required": [
+          "pan",
+          "cvv"
+        ]
       },
       "CardPolicySummary": {
         "type": "object",
@@ -2597,7 +2777,10 @@
           },
           "usage": {
             "type": "string",
-            "enum": ["single", "multi"]
+            "enum": [
+              "single",
+              "multi"
+            ]
           },
           "status": {
             "type": "string",
@@ -2681,7 +2864,14 @@
             "$ref": "#/components/schemas/Policy"
           }
         },
-        "required": ["cardId", "usage", "ttl", "cooldown", "limits", "policy"]
+        "required": [
+          "cardId",
+          "usage",
+          "ttl",
+          "cooldown",
+          "limits",
+          "policy"
+        ]
       },
       "Intent": {
         "type": "object",
@@ -2736,7 +2926,15 @@
           },
           "status": {
             "type": "string",
-            "enum": ["pending_approval", "pending", "matched", "mismatched", "expired", "rejected", "canceled"],
+            "enum": [
+              "pending_approval",
+              "pending",
+              "matched",
+              "mismatched",
+              "expired",
+              "rejected",
+              "canceled"
+            ],
             "description": "Intent status"
           },
           "expiresAt": {
@@ -2784,11 +2982,18 @@
             "nullable": true
           }
         },
-        "required": ["id", "cardId", "purpose", "status"]
+        "required": [
+          "id",
+          "cardId",
+          "purpose",
+          "status"
+        ]
       },
       "CreateIntentRequest": {
         "type": "object",
-        "required": ["purpose"],
+        "required": [
+          "purpose"
+        ],
         "properties": {
           "intentId": {
             "type": "string",
@@ -2870,7 +3075,12 @@
           },
           "status": {
             "type": "string",
-            "enum": ["granted", "denied", "consumed", "expired"]
+            "enum": [
+              "granted",
+              "denied",
+              "consumed",
+              "expired"
+            ]
           },
           "grantedAt": {
             "type": "string",
@@ -2898,7 +3108,11 @@
             "nullable": true
           }
         },
-        "required": ["id", "cardId", "status"]
+        "required": [
+          "id",
+          "cardId",
+          "status"
+        ]
       },
       "AccessRequest": {
         "type": "object",
@@ -2949,7 +3163,10 @@
           },
           "decision": {
             "type": "string",
-            "enum": ["granted", "denied"]
+            "enum": [
+              "granted",
+              "denied"
+            ]
           },
           "reasons": {
             "type": "array",
@@ -2976,7 +3193,13 @@
             "nullable": true
           }
         },
-        "required": ["id", "cardId", "status", "decision", "reasons"]
+        "required": [
+          "id",
+          "cardId",
+          "status",
+          "decision",
+          "reasons"
+        ]
       },
       "PolicyReason": {
         "type": "object",
@@ -2990,7 +3213,10 @@
             "description": "Human-readable reason message"
           }
         },
-        "required": ["code", "message"]
+        "required": [
+          "code",
+          "message"
+        ]
       },
       "Transaction": {
         "type": "object",
@@ -3067,7 +3293,10 @@
             "nullable": true
           }
         },
-        "required": ["id", "amount"]
+        "required": [
+          "id",
+          "amount"
+        ]
       },
       "Balance": {
         "type": "object",
@@ -3098,7 +3327,12 @@
             "nullable": true
           }
         },
-        "required": ["currency", "available", "pending", "posted"]
+        "required": [
+          "currency",
+          "available",
+          "pending",
+          "posted"
+        ]
       },
       "FundingInstructions": {
         "type": "object",
@@ -3117,7 +3351,11 @@
             "description": "Deposit address"
           }
         },
-        "required": ["currency", "network", "address"]
+        "required": [
+          "currency",
+          "network",
+          "address"
+        ]
       },
       "Webhook": {
         "type": "object",
@@ -3155,7 +3393,12 @@
             "nullable": true
           }
         },
-        "required": ["id", "url", "events", "enabled"]
+        "required": [
+          "id",
+          "url",
+          "events",
+          "enabled"
+        ]
       },
       "CreateWebhookRequest": {
         "type": "object",
@@ -3224,11 +3467,17 @@
             "nullable": true
           }
         },
-        "required": ["id", "status"]
+        "required": [
+          "id",
+          "status"
+        ]
       },
       "CreateKycApplicationRequest": {
         "type": "object",
-        "required": ["customerId", "application"],
+        "required": [
+          "customerId",
+          "application"
+        ],
         "properties": {
           "customerId": {
             "type": "string",
@@ -3290,11 +3539,16 @@
             "nullable": true
           }
         },
-        "required": ["status", "createdAt"]
+        "required": [
+          "status",
+          "createdAt"
+        ]
       },
       "EvaluateSpendRequest": {
         "type": "object",
-        "required": ["amount"],
+        "required": [
+          "amount"
+        ],
         "properties": {
           "customerId": {
             "type": "string"
@@ -3330,7 +3584,10 @@
         "properties": {
           "decision": {
             "type": "string",
-            "enum": ["approve", "decline"]
+            "enum": [
+              "approve",
+              "decline"
+            ]
           },
           "reasons": {
             "type": "array",
@@ -3396,7 +3653,10 @@
             }
           }
         },
-        "required": ["decision", "reasons"]
+        "required": [
+          "decision",
+          "reasons"
+        ]
       }
     }
   }
