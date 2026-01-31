@@ -1,0 +1,168 @@
+---
+title: "Webhook Setup"
+description: "Configure webhook endpoints"
+---
+
+# Webhook Setup
+
+Learn how to configure webhook endpoints to receive real-time events.
+
+## Creating an Endpoint
+
+<Steps>
+  <Step title="Go to Dashboard">
+    Navigate to [dashboard.useproxy.ai](https://dashboard.useproxy.ai)
+  </Step>
+  <Step title="Open Webhooks">
+    Go to **Settings > Webhooks**
+  </Step>
+  <Step title="Add Endpoint">
+    Click **Add Endpoint** and enter your URL
+  </Step>
+  <Step title="Select Events">
+    Choose which events to subscribe to
+  </Step>
+  <Step title="Save">
+    Copy your signing secret for verification
+  </Step>
+</Steps>
+
+## Endpoint Requirements
+
+Your webhook endpoint must:
+
+- Use HTTPS (required in production)
+- Accept POST requests
+- Return 2xx status within 30 seconds
+- Accept `application/json` content type
+
+## Example Endpoint
+
+<CodeGroup>
+```javascript Express.js
+const express = require('express');
+const { Webhook } = require('svix');
+
+const app = express();
+app.use(express.raw({ type: 'application/json' }));
+
+const webhook = new Webhook(process.env.WEBHOOK_SECRET);
+
+app.post('/webhooks/proxy', (req, res) => {
+  try {
+    const payload = webhook.verify(req.body, {
+      'svix-id': req.headers['svix-id'],
+      'svix-timestamp': req.headers['svix-timestamp'],
+      'svix-signature': req.headers['svix-signature']
+    });
+
+    switch (payload.type) {
+      case 'transaction.completed':
+        handleTransaction(payload.data);
+        break;
+      case 'card.created':
+        handleCardCreated(payload.data);
+        break;
+      // ... handle other events
+    }
+
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('Webhook error:', err);
+    res.status(400).send('Invalid signature');
+  }
+});
+```
+
+```python FastAPI
+from fastapi import FastAPI, Request, HTTPException
+from svix.webhooks import Webhook
+
+app = FastAPI()
+webhook = Webhook(os.environ['WEBHOOK_SECRET'])
+
+@app.post('/webhooks/proxy')
+async def handle_webhook(request: Request):
+    body = await request.body()
+    headers = {
+        'svix-id': request.headers.get('svix-id'),
+        'svix-timestamp': request.headers.get('svix-timestamp'),
+        'svix-signature': request.headers.get('svix-signature')
+    }
+
+    try:
+        payload = webhook.verify(body, headers)
+    except Exception:
+        raise HTTPException(400, 'Invalid signature')
+
+    if payload['type'] == 'transaction.completed':
+        handle_transaction(payload['data'])
+
+    return {'status': 'ok'}
+```
+</CodeGroup>
+
+## Managing Endpoints
+
+### Update Endpoint
+
+1. Go to **Settings > Webhooks**
+2. Click on the endpoint
+3. Update URL or subscribed events
+4. Save changes
+
+### Rotate Secret
+
+If your signing secret is compromised:
+
+1. Go to **Settings > Webhooks**
+2. Click on the endpoint
+3. Click **Rotate Secret**
+4. Update your server with the new secret
+
+<Warning>
+  After rotating, you have 24 hours to update your server. Both old and new secrets work during this period.
+</Warning>
+
+### Delete Endpoint
+
+1. Go to **Settings > Webhooks**
+2. Click on the endpoint
+3. Click **Delete**
+4. Confirm deletion
+
+## Testing Webhooks
+
+### Send Test Event
+
+1. Go to **Settings > Webhooks**
+2. Click on the endpoint
+3. Click **Send Test Event**
+4. Select event type
+5. View delivery result
+
+### Local Development
+
+Use a tunnel service for local testing:
+
+```bash
+# Using ngrok
+ngrok http 3000
+
+# Use the ngrok URL as your webhook endpoint
+# https://abc123.ngrok.io/webhooks/proxy
+```
+
+## Monitoring
+
+View webhook delivery status in the Dashboard:
+
+- **Delivered** - Successfully received
+- **Pending** - Awaiting delivery
+- **Failed** - All retries exhausted
+
+Click on any event to see:
+- Request payload
+- Response status
+- Delivery attempts
+- Error messages

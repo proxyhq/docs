@@ -1,0 +1,237 @@
+---
+title: "Policies"
+description: "Reusable spending policy templates"
+---
+
+# Policies
+
+Policies are reusable templates that define spending controls. Instead of configuring limits on each card, create a policy once and apply it to multiple agents or cards.
+
+## Why Policies?
+
+| Without Policies | With Policies |
+|------------------|---------------|
+| Configure limits on each card | Define once, reuse everywhere |
+| Update each card individually | Update policy, all cards inherit |
+| Inconsistent configurations | Standardized spending rules |
+
+## Create a Policy
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/policies \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "standard-agent",
+    "description": "Standard spending limits for agents",
+    "limitPerAuth": 10000,
+    "limitPerDay": 50000,
+    "limitPerMonth": 200000,
+    "cooldownMinutes": 5,
+    "requireAttestation": true
+  }'
+```
+
+```json
+{
+  "object": "policy",
+  "id": "pol_abc123",
+  "name": "standard-agent",
+  "description": "Standard spending limits for agents",
+  "limitPerAuth": 10000,
+  "limitPerDay": 50000,
+  "limitPerMonth": 200000,
+  "cooldownMinutes": 5,
+  "requireAttestation": true,
+  "createdAt": 1703520000000
+}
+```
+
+## Policy Fields
+
+### Spending Limits
+
+| Field | Description |
+|-------|-------------|
+| `limitPerAuth` | Max per transaction (cents) |
+| `limitPerDay` | Max per 24 hours (cents) |
+| `limitPerMonth` | Max per calendar month (cents) |
+| `cumulativeMax` | Lifetime max spending (cents) |
+| `maxAuthCount` | Max number of transactions |
+
+### Time Controls
+
+| Field | Description |
+|-------|-------------|
+| `ttlMinutes` | Card auto-expires after N minutes |
+| `onExpiry` | Action on expiry: `freeze` or `close` |
+| `activeHoursStart` | Hour (0-23) when card activates |
+| `activeHoursEnd` | Hour (0-23) when card deactivates |
+| `activeTimezone` | IANA timezone (e.g., "America/New_York") |
+| `activeDays` | Days of week (0=Sun through 6=Sat) |
+| `cooldownMinutes` | Min time between transactions |
+
+### Attestation
+
+| Field | Description |
+|-------|-------------|
+| `requireAttestation` | Must declare intent before use |
+| `intentTolerance` | Max % variance from declared amount (0.0-1.0) |
+| `merchantHint` | Expected merchant name |
+| `onDrift` | Action on merchant mismatch: `allow`, `flag`, `decline` |
+
+## List Policies
+
+```bash
+curl https://api.useproxy.ai/v1/policies \
+  -H "Api-Key: $API_KEY"
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "policy",
+      "id": "pol_abc123",
+      "name": "standard-agent",
+      "description": "Standard spending limits for agents",
+      "limitPerAuth": 10000,
+      "createdAt": 1703520000000
+    },
+    {
+      "object": "policy",
+      "id": "pol_def456",
+      "name": "high-value",
+      "description": "For high-value purchases",
+      "limitPerAuth": 100000,
+      "createdAt": 1703520000000
+    }
+  ],
+  "hasMore": false
+}
+```
+
+## Get Policy
+
+```bash
+curl https://api.useproxy.ai/v1/policies/pol_abc123 \
+  -H "Api-Key: $API_KEY"
+```
+
+## Update Policy
+
+```bash
+curl -X PATCH https://api.useproxy.ai/v1/policies/pol_abc123 \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "limitPerAuth": 15000,
+    "description": "Updated standard limits"
+  }'
+```
+
+<Note>
+  Updating a policy affects all agents and cards using it. Changes take effect immediately.
+</Note>
+
+## Delete Policy
+
+```bash
+curl -X DELETE https://api.useproxy.ai/v1/policies/pol_abc123 \
+  -H "Api-Key: $API_KEY"
+```
+
+<Warning>
+  You cannot delete a policy that's in use by agents or cards.
+</Warning>
+
+## Using Policies
+
+### Assign to Agent
+
+When creating an agent, specify a default policy:
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/agents/register \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "externalId": "shopping-agent",
+    "userId": "user_123",
+    "name": "Shopping Agent",
+    "defaultPolicyId": "pol_abc123"
+  }'
+```
+
+All cards created for this agent will inherit the policy.
+
+### Assign to Card
+
+Override the agent's policy for a specific card:
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/agents/agent_xyz/cards \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "purpose": "Special purchase",
+    "type": "single",
+    "policyId": "pol_def456"
+  }'
+```
+
+## Policy Inheritance
+
+```
+Policy Template
+    └── Agent (defaultPolicyId)
+          └── Card (inherits or overrides)
+```
+
+- Cards inherit from their agent's `defaultPolicyId`
+- Cards can override with their own `policyId`
+- Inline policy fields on card creation override template values
+
+## Example Policies
+
+### Business Hours Only
+
+```json
+{
+  "name": "business-hours",
+  "activeHoursStart": 9,
+  "activeHoursEnd": 17,
+  "activeTimezone": "America/New_York",
+  "activeDays": [1, 2, 3, 4, 5],
+  "limitPerDay": 50000
+}
+```
+
+### High-Security
+
+```json
+{
+  "name": "high-security",
+  "limitPerAuth": 5000,
+  "cooldownMinutes": 10,
+  "requireAttestation": true,
+  "intentTolerance": 0.05,
+  "maxAuthCount": 5
+}
+```
+
+### Subscription Card
+
+```json
+{
+  "name": "subscription",
+  "limitPerMonth": 10000,
+  "merchantHint": "Netflix",
+  "onDrift": "decline"
+}
+```
+
+<Card title="Cards" icon="credit-card" href="/concepts/cards">
+  Learn about card policies in detail
+</Card>

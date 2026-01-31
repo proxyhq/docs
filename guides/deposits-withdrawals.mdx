@@ -1,0 +1,250 @@
+---
+title: "Deposits & Withdrawals"
+description: "Manage funds for card spending"
+---
+
+# Deposits & Withdrawals
+
+Users fund card spending by depositing funds. This guide covers the deposit and withdrawal flows.
+
+## Funding Methods
+
+| Method | Timing | Availability |
+|--------|--------|--------------|
+| **Crypto (USDC/USDT)** | Minutes | Now |
+| **ACH** | 1-3 business days | Coming soon |
+| **Wire** | Same day | Coming soon |
+
+## How It Works
+
+1. Get the user's funding methods via the API
+2. User deposits funds (crypto, ACH, or wire)
+3. Balance is credited once funds are received
+4. Spending power equals deposited value
+5. Users can withdraw unused funds
+
+## Crypto Deposits
+
+### Supported Chains & Tokens
+
+| Chain | USDC | USDT | Chain ID |
+|-------|------|------|----------|
+| Polygon | Yes | Yes | 137 |
+| Base | Yes | Yes | 8453 |
+| Optimism | Yes | Yes | 10 |
+| Arbitrum | Yes | Yes | 42161 |
+| Avalanche | Yes | Yes | 43114 |
+
+## Deposits
+
+### Step 1: Get Funding Methods
+
+```bash
+curl https://api.useproxy.ai/v1/users/$USER_ID/funding \
+  -H "Api-Key: $API_KEY"
+```
+
+**Response:**
+```json
+{
+  "object": "funding",
+  "userId": "user_abc123",
+  "methods": [{
+    "type": "crypto",
+    "network": "base",
+    "chainId": 8453,
+    "address": "0x36561987b391685A09A26068eFBa31D6dFbfC530"
+  }]
+}
+```
+
+### Step 2: Send Tokens
+
+Transfer USDC or USDT to the `address` on your preferred chain.
+
+<Warning>
+  Send tokens to the correct chain! Each deposit address only works on its specific chain.
+</Warning>
+
+### Step 3: Verify Balance
+
+```bash
+curl https://api.useproxy.ai/v1/balances/$USER_ID \
+  -H "Api-Key: $API_KEY"
+```
+
+**Response:**
+```json
+{
+  "userId": "user_abc123",
+  "available": 10000,
+  "pending": 0,
+  "deposited": 10000,
+  "currency": "USD"
+}
+```
+
+Balance updates once funds are received.
+
+## Understanding Balance Fields
+
+| Field | Description |
+|-------|-------------|
+| `available` | What can be spent right now (cents) |
+| `pending` | Authorizations not yet settled (cents) |
+| `deposited` | Total funds deposited (cents) |
+| `currency` | Currency code (always "USD") |
+
+**Formula:**
+```
+available = deposited - pending - spent
+```
+
+## Withdrawals
+
+Users can withdraw unused funds at any time.
+
+### Check Available Balance
+
+Before withdrawing, ensure `available` covers the amount:
+
+```bash
+curl https://api.useproxy.ai/v1/balances/$USER_ID \
+  -H "Api-Key: $API_KEY"
+```
+
+### Create Withdrawal
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/withdrawals \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "$USER_ID",
+    "chainId": 8453,
+    "tokenAddress": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "amount": 5000000,
+    "recipientAddress": "0x..."
+  }'
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `chainId` | number | Yes | Chain to withdraw on |
+| `tokenAddress` | string | Yes | Token contract address |
+| `amount` | number | Yes | Amount in token minor units (USDC has 6 decimals, so 1000000 = $1) |
+| `recipientAddress` | string | No | Destination wallet address |
+
+<Note>
+  USDC uses 6 decimal places. To withdraw $5 USDC, send `amount: 5000000`.
+</Note>
+
+**Response:**
+```json
+{
+  "id": "withdrawal_xyz",
+  "userId": "user_abc123",
+  "chainId": 8453,
+  "tokenAddress": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  "amount": 5000000,
+  "recipientAddress": "0x...",
+  "transactionHash": "0x...",
+  "status": "submitted"
+}
+```
+
+### Withdrawal Status
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Awaiting processing |
+| `submitted` | Transaction submitted to network |
+| `confirmed` | Transaction confirmed on-chain |
+| `failed` | Transaction failed |
+
+### List Withdrawals
+
+```bash
+curl "https://api.useproxy.ai/v1/withdrawals?userId=$USER_ID" \
+  -H "Api-Key: $API_KEY"
+```
+
+### Get Withdrawal
+
+Check the status of a specific withdrawal:
+
+```bash
+curl "https://api.useproxy.ai/v1/withdrawals/$WITHDRAWAL_ID" \
+  -H "Api-Key: $API_KEY"
+```
+
+**Response:**
+```json
+{
+  "object": "withdrawal",
+  "id": "wd_abc123",
+  "userId": "user_xyz",
+  "chainId": 8453,
+  "amount": 10000000,
+  "recipientAddress": "0x...",
+  "status": "confirmed",
+  "transactionHash": "0x...",
+  "createdAt": 1234567890,
+  "confirmedAt": 1234567900
+}
+```
+
+## Webhooks
+
+Subscribe to deposit and withdrawal events:
+
+| Event | Description |
+|-------|-------------|
+| `deposit.received` | Funds received and credited |
+| `deposit.address_ready` | Deposit address available |
+| `withdrawal.submitted` | Withdrawal transaction submitted |
+| `withdrawal.confirmed` | Withdrawal confirmed on-chain |
+| `withdrawal.failed` | Withdrawal failed |
+| `user.balance.updated` | Credit limit or spending power changed |
+
+## Sandbox Testing
+
+When using `lk_test_` keys, Proxy returns mocked balances and withdrawals. You can force mock mode with `PROXY_TEST_FORCE_MOCK=true`, and customize defaults with:
+
+- `PROXY_TEST_BALANCE_AVAILABLE` (cents)
+- `PROXY_TEST_BALANCE_DEPOSITED` (cents)
+- `PROXY_TEST_BALANCE_PENDING` (cents)
+- `PROXY_TEST_WITHDRAWAL_AUTO_SUBMIT` (default `true`)
+
+In sandbox, use test tokens (rUSD) instead of real USDC:
+
+| Chain | rUSD Contract |
+|-------|---------------|
+| Base Sepolia | `0x10b5Be494C2962A7B318aFB63f0Ee30b959D000b` |
+| Optimism Sepolia | `0x915F8c4a8b9fE793b3185c4186F716d7e5D891b6` |
+| Arbitrum Sepolia | `0xd116d4752fc50D660FB5b5c801448Ae84B4937bc` |
+
+**To get test tokens:**
+
+1. Go to the block explorer for the rUSD contract
+2. Connect your wallet
+3. Call `mint(amount)` (max 100 tokens per transaction)
+4. Transfer to the user's `depositAddress`
+
+<Info>
+  rUSD has 6 decimals like USDC. To mint 100 rUSD, call `mint(100000000)`.
+</Info>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Monitor balance webhooks">
+    Use `user.balance.updated` webhooks to track credit changes in real-time.
+  </Accordion>
+  <Accordion title="Check available balance before purchases">
+    Always verify `available` balance before issuing cards or making large purchases.
+  </Accordion>
+  <Accordion title="Handle withdrawal failures">
+    Withdrawal transactions can fail due to network issues. Implement retry logic.
+  </Accordion>
+</AccordionGroup>

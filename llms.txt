@@ -1,0 +1,252 @@
+# Proxy Documentation
+
+> Virtual card issuing platform for AI agents
+
+Proxy provides virtual cards designed specifically for AI agents. Issue cards, set spending limits, track transactions, and maintain full audit trails.
+
+## Quick Links
+
+- Documentation: https://docs.useproxy.ai
+- API Base URL: https://api.useproxy.ai
+- MCP Server: https://mcp.useproxy.ai/api/mcp
+- Dashboard: https://dashboard.useproxy.ai
+
+## Getting Started
+
+- [Introduction](https://docs.useproxy.ai/introduction): Overview of Proxy API
+- [System Overview](https://docs.useproxy.ai/system-overview): Architecture and how it works
+- [Quick Start](https://docs.useproxy.ai/quickstart): Create your first card in 5 minutes
+- [Authentication](https://docs.useproxy.ai/authentication): API key and agent token authentication
+- [Payment Flow](https://docs.useproxy.ai/payment-flow): End-to-end payment lifecycle
+- [Errors](https://docs.useproxy.ai/errors): Error codes and handling
+
+## User Onboarding
+
+- [User Onboarding Guide](https://docs.useproxy.ai/guides/user-onboarding): KYC verification process
+- [Users Concept](https://docs.useproxy.ai/concepts/users): Understanding users vs agents
+- [Deposits & Withdrawals](https://docs.useproxy.ai/guides/deposits-withdrawals): Funding user accounts
+
+## Core Concepts
+
+- [Agents](https://docs.useproxy.ai/concepts/agents): AI agent identities
+- [Cards](https://docs.useproxy.ai/concepts/cards): Virtual card types and policies
+- [Spending Intents](https://docs.useproxy.ai/concepts/spending-intents): Declaring purchase intent
+- [Security Attestation](https://docs.useproxy.ai/concepts/security-attestation): Audit trails for card access
+- [Transactions](https://docs.useproxy.ai/concepts/transactions): Transaction lifecycle
+- [Disputes](https://docs.useproxy.ai/concepts/disputes): Handling transaction disputes
+- [Policies](https://docs.useproxy.ai/concepts/policies): Spending policies and limits
+- [Rake](https://docs.useproxy.ai/concepts/rake): Platform fees
+- [Risk Policies](https://docs.useproxy.ai/concepts/risk-policies): Anomaly detection and risk engine
+- [Webhooks](https://docs.useproxy.ai/concepts/webhooks): Real-time event notifications
+
+## Guides
+
+- [Create Your First Card](https://docs.useproxy.ai/guides/create-your-first-card): Step-by-step card creation
+- [Statements](https://docs.useproxy.ai/guides/statements): Generating account statements
+- [Best Practices](https://docs.useproxy.ai/best-practices): Security guidelines
+- [Troubleshooting](https://docs.useproxy.ai/troubleshooting): Common issues and solutions
+
+## API Reference
+
+- [API Introduction](https://docs.useproxy.ai/api-reference/introduction): API overview and conventions
+
+### Users
+- POST /v1/users - Create user
+- GET /v1/users/{userId} - Get user
+- PATCH /v1/users/{userId} - Update user
+- DELETE /v1/users/{userId} - Delete user
+
+### Verification
+- POST /v1/verification/user - Initiate KYC
+- GET /v1/verification/user/{userId} - Get verification status
+- PATCH /v1/verification/user/{userId} - Update verification
+- PUT /v1/verification/user/{userId}/document - Upload document
+- GET /v1/verification/user/{userId}/link - Get verification URL
+
+### Agents
+- POST /v1/agents/register - Register agent
+- GET /v1/agents - List agents
+- GET /v1/agents/{agentId} - Get agent
+- PATCH /v1/agents/{agentId} - Update agent
+- POST /v1/agents/{agentId}/deregister - Deregister agent
+- GET /v1/agents/{agentId}/policy - Get agent policy
+- GET /v1/agents/{agentId}/tokens - List agent tokens
+- POST /v1/agents/{agentId}/tokens - Create agent token
+- DELETE /v1/agents/{agentId}/tokens/{tokenId} - Delete token
+
+### Cards
+- POST /v1/agents/{agentId}/cards - Create card
+- GET /v1/agents/{agentId}/cards - List agent's cards
+- GET /v1/users/{userId}/cards - List user's cards
+- GET /v1/cards/{cardId} - Get card
+- PATCH /v1/cards/{cardId} - Update card
+- GET /v1/cards/{cardId}/policy - Get card policy
+- POST /v1/cards/{cardId}/freeze - Freeze card
+- POST /v1/cards/{cardId}/unfreeze - Unfreeze card
+- POST /v1/cards/{cardId}/close - Close card
+- POST /v1/cards/{cardId}/details - Get card credentials (PAN, CVV)
+
+### Funds
+- GET /v1/users/{userId}/funding - Get funding addresses
+- GET /v1/balances/{userId} - Get user balance
+- POST /v1/withdrawals - Request withdrawal
+- GET /v1/withdrawals - List withdrawals
+- GET /v1/withdrawals/{withdrawalId} - Get withdrawal
+
+### Statements
+- GET /v1/users/{userId}/statements - List statements
+- POST /v1/users/{userId}/statements/generate - Generate statement
+- GET /v1/users/{userId}/statements/{statementId} - Get statement
+
+### Spending Intents
+- GET /v1/intents - List all intents
+- GET /v1/intents/{intentId} - Get intent
+- POST /v1/intents/{intentId}/approve - Approve intent (HITL)
+- POST /v1/intents/{intentId}/reject - Reject intent (HITL)
+- POST /v1/cards/{cardId}/intents - Declare intent
+- GET /v1/cards/{cardId}/intents - List card intents
+
+### Transactions
+- GET /v1/transactions - List transactions
+- GET /v1/cards/{cardId}/transactions - List card transactions
+- GET /v1/transactions/{transactionId} - Get transaction
+- PATCH /v1/transactions/{transactionId} - Update transaction
+- GET /v1/transactions/{transactionId}/receipt - Get receipt
+- PUT /v1/transactions/{transactionId}/receipt - Upload receipt
+- DELETE /v1/transactions/{transactionId}/receipt - Delete receipt
+
+### Disputes
+- GET /v1/disputes - List disputes
+- GET /v1/disputes/{disputeId} - Get dispute
+- PATCH /v1/disputes/{disputeId} - Update dispute
+- GET /v1/disputes/{disputeId}/evidence - Get evidence
+- PUT /v1/disputes/{disputeId}/evidence - Upload evidence
+- POST /v1/transactions/{transactionId}/disputes - Create dispute
+
+### Webhooks
+- GET /v1/webhooks - List webhooks
+- POST /v1/webhooks - Create webhook
+- GET /v1/webhooks/{webhookId} - Get webhook
+- PATCH /v1/webhooks/{webhookId} - Update webhook
+- DELETE /v1/webhooks/{webhookId} - Delete webhook
+- GET /v1/webhooks/{webhookId}/secret - Get webhook secret
+- POST /v1/webhooks/{webhookId}/rotate-secret - Rotate secret
+- POST /v1/webhooks/{webhookId}/test - Test webhook
+- GET /v1/webhook-event-types - List event types
+
+### Policies
+- POST /v1/policies - Create policy
+- GET /v1/policies - List policies
+- GET /v1/policies/{policyId} - Get policy
+- PATCH /v1/policies/{policyId} - Update policy
+- DELETE /v1/policies/{policyId} - Delete policy
+
+### Rake
+- GET /v1/rake - Get rake settings
+- PATCH /v1/rake - Update rake settings
+- GET /v1/rake/balance - Get rake balance
+- GET /v1/rake/ledger - Get rake ledger
+
+### Risk Settings
+- GET /v1/settings/risk - Get risk settings
+- PATCH /v1/settings/risk - Update risk settings
+- POST /v1/settings/risk/preset - Apply preset
+- GET /v1/settings/risk/presets - List presets
+- POST /v1/settings/risk/dry-run - Test rules
+
+## MCP Server
+
+- [MCP Introduction](https://docs.useproxy.ai/mcp/introduction): MCP server overview
+- [MCP Quickstart](https://docs.useproxy.ai/mcp/quickstart): Connect in 5 minutes
+- [MCP Tools](https://docs.useproxy.ai/mcp/tools): Available MCP tools
+- [MCP Examples](https://docs.useproxy.ai/mcp/examples): Usage examples
+
+### Agent Tools (API key or agent token)
+- proxy_status - Check user verification and spending status
+- proxy_funding - Get funding addresses and balance
+- proxy_card - Create and manage cards, get credentials
+- proxy_intent - Declare spending intents
+- proxy_transactions - Query transaction history
+- proxy_onboarding - Get KYC verification links
+- proxy_challenges - Get pending 3DS OTP codes
+
+### Admin Tools (API key only)
+- proxy_users - Manage users
+- proxy_agents - Manage agents
+- proxy_policies - Manage spending policies
+- proxy_risk - Configure risk settings
+- proxy_webhooks - Manage webhook endpoints
+
+## Webhooks
+
+- [Webhooks Introduction](https://docs.useproxy.ai/webhooks/introduction): Overview
+- [Webhooks Setup](https://docs.useproxy.ai/webhooks/setup): Configuration guide
+- [Webhook Events](https://docs.useproxy.ai/webhooks/events): Event types reference
+
+### Event Types
+- user.created, user.approved, user.rejected
+- deposit.completed, withdrawal.completed
+- agent.registered, agent.deregistered
+- card.created, card.frozen, card.closed
+- transaction.created, transaction.settled, transaction.declined
+- intent.declared, intent.matched, intent.mismatched
+- challenge.requested
+
+## Key Concepts
+
+### Hierarchy
+```
+Organization (your company, holds API keys)
+  └── User (KYC-verified, deposits funds)
+        └── Agent (AI agent identity)
+              └── Card (virtual card)
+```
+
+### Card Types
+- **single**: One-time use. Auto-closes after first transaction.
+- **multi**: Reusable with velocity limits. Merchant drift detection enabled by default.
+
+### Intent Flow
+1. Declare intent (summary, amount, merchant)
+2. Get card details (PAN, CVV)
+3. Complete transaction
+4. Intent matched/mismatched automatically
+
+### Authentication
+- API Key (`Api-Key` header): Full access
+- Agent Token (`Authorization: Bearer`): Agent-scoped access
+
+### Amounts
+All amounts are in cents (USD). Example: 2500 = $25.00
+
+## Common Flows
+
+### Issue card and make purchase
+```
+1. POST /v1/agents/{agentId}/cards
+   { "purpose": "Buy headphones", "type": "single", "maxAmount": 15000 }
+
+2. POST /v1/cards/{cardId}/details
+   { "summary": "Buy Sony headphones on Amazon", "expectedAmount": 12999 }
+   → Returns { "pan": "...", "cvv": "...", ... }
+
+3. Use card at checkout
+
+4. Card auto-closes after transaction (single-use)
+```
+
+### Multi-use card with intent
+```
+1. POST /v1/agents/{agentId}/cards
+   { "purpose": "DoorDash orders", "type": "multi", "maxAmount": 5000 }
+
+2. POST /v1/cards/{cardId}/intents
+   { "summary": "Order lunch", "amount": 2500, "merchantText": "DOORDASH" }
+
+3. POST /v1/cards/{cardId}/details
+   { "summary": "Order lunch", "expectedAmount": 2500 }
+
+4. Use card at checkout
+
+5. Transaction matched to intent → webhook: intent.matched
+```

@@ -1,0 +1,287 @@
+---
+title: "Risk Policies"
+description: "Detect and respond to anomalous agent spending patterns"
+---
+
+# Risk Policies
+
+Automatically detect suspicious spending patterns and take action—from alerting to freezing cards to suspending agents.
+
+## How it works
+
+| Step | What happens |
+|------|--------------|
+| **Configure** | Set detection rules at org, agent, or card level |
+| **Transact** | Risk engine evaluates each transaction in real-time |
+| **Detect** | Anomalies trigger configured actions |
+| **Respond** | Alert, freeze card, or suspend agent automatically |
+
+## Presets
+
+Start with a preset and customize from there:
+
+| Preset | Description | Use case |
+|--------|-------------|----------|
+| `permissive` | Minimal detection, alert-only | Trusted agents, low-risk operations |
+| `moderate` | Balanced detection with alerts | Good starting point |
+| `strict` | Aggressive detection, auto-freeze cards | High-value transactions |
+| `paranoid` | Maximum protection, auto-suspend agents | Untrusted or new agents |
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/settings/risk/preset \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"preset": "moderate"}'
+```
+
+## Detection rules
+
+### Duplicate detection
+
+Catches agents accidentally repeating the same purchase.
+
+```json
+{
+  "duplicateDetection": {
+    "enabled": true,
+    "windowMinutes": 5,
+    "action": "freeze_card"
+  }
+}
+```
+
+Triggers when same merchant + same amount occurs within the time window.
+
+### Velocity limits
+
+Prevents runaway loops making too many transactions.
+
+```json
+{
+  "velocityLimit": {
+    "enabled": true,
+    "maxPerHour": 20,
+    "maxPerDay": 100,
+    "action": "alert"
+  }
+}
+```
+
+### Spend spike detection
+
+Catches sudden spending surges compared to historical patterns.
+
+```json
+{
+  "spendSpike": {
+    "enabled": true,
+    "multiplier": 3.0,
+    "windowMinutes": 60,
+    "baselineDays": 7,
+    "action": "freeze_card"
+  }
+}
+```
+
+Triggers when current spending rate exceeds `multiplier` times the average over `baselineDays`.
+
+### Unattested spend
+
+Responds when a transaction occurs without prior credential attestation.
+
+```json
+{
+  "unattestedSpend": {
+    "enabled": true,
+    "action": "alert"
+  }
+}
+```
+
+### Intent mismatch
+
+Responds when a transaction doesn't match the declared spending intent.
+
+```json
+{
+  "intentMismatch": {
+    "enabled": true,
+    "action": "alert"
+  }
+}
+```
+
+### Cooldown violation
+
+Detects transactions that occur too quickly after the previous one.
+
+```json
+{
+  "cooldownViolation": {
+    "enabled": true,
+    "action": "alert"
+  }
+}
+```
+
+### Merchant drift
+
+Detects when a multi-use card is used at an unexpected merchant.
+
+```json
+{
+  "merchantDrift": {
+    "enabled": true,
+    "action": "freeze_card"
+  }
+}
+```
+
+## Actions
+
+| Action | Behavior |
+|--------|----------|
+| `alert` | Emit webhook, allow transaction to proceed |
+| `freeze_card` | Freeze the card after transaction completes |
+| `suspend_agent` | Suspend the agent and freeze all its cards |
+
+## Layered inheritance
+
+Risk policies cascade: **Org → Agent → Card**
+
+```
+Organization (baseline)
+└── Agent (can override any org setting)
+    └── Card (can enable/disable specific rules)
+```
+
+### Organization level
+
+Set defaults for all agents in your organization:
+
+```bash
+curl -X PATCH https://api.useproxy.ai/v1/settings/risk \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "duplicateDetection": {
+      "enabled": true,
+      "windowMinutes": 5,
+      "action": "alert"
+    },
+    "velocityLimit": {
+      "enabled": true,
+      "maxPerHour": 50,
+      "action": "alert"
+    }
+  }'
+```
+
+### Agent level
+
+Override org defaults for a specific agent:
+
+```bash
+curl -X PATCH https://api.useproxy.ai/v1/agents/$AGENT_ID \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "riskPolicy": {
+      "preset": "strict",
+      "velocityLimit": {
+        "enabled": true,
+        "maxPerHour": 10,
+        "action": "freeze_card"
+      }
+    }
+  }'
+```
+
+### Card level
+
+Enable or disable specific rules for a card:
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/agents/$AGENT_ID/cards \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "purpose": "Large one-time purchase",
+    "maxAmount": 100000,
+    "riskPolicy": {
+      "velocityLimit": { "enabled": false }
+    }
+  }'
+```
+
+## Dry-run mode
+
+Test your risk policies without taking action. Anomalies are detected and webhooks are emitted, but cards aren't frozen and agents aren't suspended.
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/settings/risk/dry-run \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": true}'
+```
+
+Use dry-run to:
+- Tune thresholds before going live
+- Monitor what *would* trigger without disrupting operations
+- Test new rules on production traffic safely
+
+## Webhook events
+
+Risk anomalies emit webhook events:
+
+| Event | Description |
+|-------|-------------|
+| `anomaly.duplicate` | Duplicate transaction detected |
+| `anomaly.velocity` | Velocity limit exceeded |
+| `anomaly.spend_spike` | Spending spike detected |
+| `anomaly.unattested` | Unattested spend detected |
+| `anomaly.intent_mismatch` | Intent mismatch detected |
+| `anomaly.cooldown` | Cooldown violation detected |
+| `anomaly.merchant_drift` | Merchant drift detected |
+| `card.auto_frozen` | Card automatically frozen by risk engine |
+| `agent.auto_suspended` | Agent automatically suspended by risk engine |
+
+Example webhook payload:
+
+```json
+{
+  "type": "anomaly.velocity",
+  "data": {
+    "cardId": "card_abc123",
+    "agentId": "agent_xyz789",
+    "transactionId": "txn_def456",
+    "action": "freeze_card",
+    "dryRun": false,
+    "details": {
+      "count": 25,
+      "limit": 20,
+      "window": "hour"
+    }
+  }
+}
+```
+
+## Automated Explanations
+
+The rule-based risk engine detects anomalies using deterministic rules. For human-readable explanations and cross-pattern analysis, enable the [Auditors](/concepts/auditors).
+
+| Component | Type | Purpose |
+|-----------|------|---------|
+| Risk Engine | Rules | Fast anomaly detection (this page) |
+| Transaction Auditor | AI | Explains anomalies, assesses severity |
+
+When both are enabled:
+1. Risk engine detects anomalies → triggers actions
+2. Transaction Auditor explains findings → emits `transaction.audit_flagged` webhook
+
+## Notes
+
+- Risk evaluation runs synchronously on each incoming transaction webhook
+- Actions are taken after the transaction completes (post-authorization)
+- Dry-run mode is per-organization and applies to all detection rules
+- Card-level overrides can only enable/disable rules, not change thresholds

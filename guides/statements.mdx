@@ -1,0 +1,186 @@
+---
+title: "Statements"
+description: "Generate and retrieve account statements"
+---
+
+# Statements
+
+Proxy automatically generates monthly statements for each user and allows on-demand statement generation for custom date ranges.
+
+<Info>
+**JSON or PDF** — Statements are available in both formats. Use JSON for programmatic access (transaction lists, summaries) or PDF for formal records and compliance.
+</Info>
+
+## Monthly Statements
+
+Statements are generated automatically at the end of each calendar month. List available statements:
+
+```bash
+curl "https://api.useproxy.ai/v1/users/$USER_ID/statements" \
+  -H "Api-Key: $API_KEY"
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "object": "statement",
+      "id": "stmt_dec2024",
+      "userId": "user_abc123",
+      "periodStart": 1701388800,
+      "periodEnd": 1704067199,
+      "totalSpent": 125000,
+      "transactionCount": 42,
+      "type": "monthly",
+      "createdAt": 1704067200
+    }
+  ],
+  "cursor": null,
+  "hasMore": false
+}
+```
+
+## Get Statement (JSON)
+
+Retrieve full statement details including all transactions:
+
+```bash
+curl "https://api.useproxy.ai/v1/users/$USER_ID/statements/$STATEMENT_ID" \
+  -H "Api-Key: $API_KEY"
+```
+
+**Response:**
+```json
+{
+  "object": "statement",
+  "id": "stmt_dec2024",
+  "userId": "user_abc123",
+  "periodStart": 1701388800,
+  "periodEnd": 1704067199,
+  "openingBalance": 0,
+  "closingBalance": 125000,
+  "creditLimit": 500000,
+  "availableCredit": 375000,
+  "totalSpent": 125000,
+  "totalRefunds": 0,
+  "totalFees": 0,
+  "transactionCount": 42,
+  "transactions": [
+    {
+      "object": "transaction",
+      "id": "txn_xyz",
+      "amount": 2500,
+      "merchantName": "Amazon",
+      "status": "completed",
+      "createdAt": 1702000000
+    }
+  ],
+  "summaryByMerchant": [
+    {
+      "merchantName": "Amazon",
+      "transactionCount": 15,
+      "totalAmount": 75000
+    },
+    {
+      "merchantName": "DoorDash",
+      "transactionCount": 27,
+      "totalAmount": 50000
+    }
+  ],
+  "summaryByCategory": [
+    {
+      "category": "Retail",
+      "categoryCode": "5411",
+      "transactionCount": 15,
+      "totalAmount": 75000
+    },
+    {
+      "category": "Food & Dining",
+      "categoryCode": "5812",
+      "transactionCount": 27,
+      "totalAmount": 50000
+    }
+  ],
+  "type": "monthly",
+  "createdAt": 1704067200
+}
+```
+
+## Download Statement (PDF)
+
+To download a statement as a PDF, set the `Accept` header:
+
+```bash
+curl "https://api.useproxy.ai/v1/users/$USER_ID/statements/$STATEMENT_ID" \
+  -H "Api-Key: $API_KEY" \
+  -H "Accept: application/pdf" \
+  -o statement.pdf
+```
+
+## Generate Custom Statement
+
+Generate a statement for any date range:
+
+```bash
+curl -X POST "https://api.useproxy.ai/v1/users/$USER_ID/statements/generate" \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "startDate": "2024-01-01",
+    "endDate": "2024-03-31"
+  }'
+```
+
+**Response:**
+```json
+{
+  "object": "statement",
+  "id": "stmt_custom_abc123",
+  "userId": "user_abc123",
+  "periodStart": 1704067200,
+  "periodEnd": 1711929599,
+  "openingBalance": 0,
+  "closingBalance": 350000,
+  "creditLimit": 500000,
+  "availableCredit": 150000,
+  "totalSpent": 350000,
+  "totalRefunds": 5000,
+  "totalFees": 0,
+  "transactionCount": 128,
+  "transactions": [...],
+  "summaryByMerchant": [...],
+  "summaryByCategory": [...],
+  "type": "custom",
+  "createdAt": 1712000000
+}
+```
+
+Custom statements are saved and can be retrieved later by their `id`.
+
+## Statement Contents
+
+Each statement includes:
+
+| Field | Description |
+|-------|-------------|
+| `openingBalance` | Balance at the start of the period (cents) |
+| `closingBalance` | Balance at the end of the period (cents) |
+| `creditLimit` | Credit limit during the period (cents) |
+| `availableCredit` | Available credit at period end (cents) |
+| `totalSpent` | Sum of all completed transactions (cents) |
+| `totalRefunds` | Sum of all refunds/reversals (cents) |
+| `totalFees` | Sum of any fees charged (cents) |
+| `transactionCount` | Number of transactions in period |
+| `transactions` | Full list of transactions |
+| `summaryByMerchant` | Spending grouped by merchant |
+| `summaryByCategory` | Spending grouped by MCC category |
+
+## Transaction Statuses in Statements
+
+Statements include transactions with the following statuses:
+
+- `completed` - Settled transactions
+- `pending` - Authorized but not yet settled
+- `declined` - Declined authorization attempts
+- `reversed` - Refunded or reversed transactions

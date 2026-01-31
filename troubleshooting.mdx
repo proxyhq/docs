@@ -1,0 +1,511 @@
+---
+title: "Troubleshooting"
+description: "Common issues and solutions for Proxy integration"
+---
+
+# Troubleshooting
+
+<Info>
+  **What You'll Find**
+
+  This page covers:
+
+  * Authentication and API key issues
+  * User onboarding and KYC problems
+  * Card creation and usage errors
+  * Transaction declines and failures
+  * Webhook delivery issues
+  * MCP connection problems
+
+  **Time to resolve:** Most issues can be resolved in minutes
+</Info>
+
+## Authentication Issues
+
+<AccordionGroup>
+  <Accordion title="Error: 'Invalid API key'">
+    **Symptoms:**
+    - HTTP 401 response
+    - Error message: "Invalid API key" or "Unauthorized"
+
+    **Causes:**
+    - Typo in API key
+    - Using wrong environment key (test vs live)
+    - Key has been revoked
+
+    **Solutions:**
+    1. Verify the key in your dashboard matches what you're using
+    2. Check you're using `lk_test_` for sandbox and `lk_live_` for production
+    3. Ensure the key hasn't been revoked
+    4. Check for extra whitespace or newlines in the key
+
+    ```bash
+    # Verify your key works
+    curl -I https://api.useproxy.ai/v1/users \
+      -H "Api-Key: lk_live_your_key"
+
+    # Should return 200, not 401
+    ```
+  </Accordion>
+
+  <Accordion title="Error: 'Missing Api-Key header'">
+    **Symptoms:**
+    - HTTP 401 response
+    - Error message: "Missing Api-Key header"
+
+    **Causes:**
+    - Header name is wrong (case-sensitive)
+    - Header not being sent
+
+    **Solutions:**
+    1. Use exact header name: `Api-Key` (capital A, capital K)
+    2. Check your HTTP client is sending headers correctly
+
+    ```bash
+    # Correct
+    -H "Api-Key: lk_live_xxx"
+
+    # Wrong (won't work)
+    -H "api-key: lk_live_xxx"
+    -H "API-KEY: lk_live_xxx"
+    -H "Authorization: Bearer lk_live_xxx"
+    ```
+  </Accordion>
+
+  <Accordion title="Error: 'Agent token not authorized for this endpoint'">
+    **Symptoms:**
+    - HTTP 403 response when using agent token
+
+    **Causes:**
+    - Agent tokens can only access agent-scoped endpoints
+    - Trying to access admin endpoints (user management, etc.)
+
+    **Solutions:**
+    - Use API key for admin operations
+    - Use agent token only for: card details, intents, transactions
+
+    | Endpoint | API Key | Agent Token |
+    |----------|---------|-------------|
+    | `/v1/users` | Yes | No |
+    | `/v1/agents` | Yes | No |
+    | `/v1/cards/{id}/details` | Yes | Yes |
+    | `/v1/cards/{id}/intents` | Yes | Yes |
+    | `/v1/transactions` | Yes | Yes (own only) |
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## User & KYC Issues
+
+<AccordionGroup>
+  <Accordion title="User stuck in 'pending' verification status">
+    **Symptoms:**
+    - User completed KYC flow but status remains "pending"
+    - Not receiving `user.approved` webhook
+
+    **Causes:**
+    - KYC requires manual review
+    - Document quality issues
+    - Information mismatch
+
+    **Solutions:**
+    1. Check verification status via API:
+       ```bash
+       curl https://api.useproxy.ai/v1/verification/user/user_xxx \
+         -H "Api-Key: lk_live_xxx"
+       ```
+    2. If status is `manualReview`, wait for review (usually < 24 hours)
+    3. If status is `documentRequired`, user needs to re-upload documents
+    4. Contact support if stuck > 48 hours
+  </Accordion>
+
+  <Accordion title="KYC verification URL expired">
+    **Symptoms:**
+    - User clicks verification link and sees "expired" error
+
+    **Causes:**
+    - Verification URLs expire after 7 days
+
+    **Solutions:**
+    - Generate a new verification URL:
+      ```bash
+      curl https://api.useproxy.ai/v1/verification/user/user_xxx/link \
+        -H "Api-Key: lk_live_xxx"
+      ```
+  </Accordion>
+
+  <Accordion title="Error: 'User not approved for spending'">
+    **Symptoms:**
+    - Cannot create agents or cards
+    - Error mentions user not approved
+
+    **Causes:**
+    - User hasn't completed KYC
+    - KYC was rejected
+
+    **Solutions:**
+    1. Check user's application status:
+       ```bash
+       curl https://api.useproxy.ai/v1/users/user_xxx \
+         -H "Api-Key: lk_live_xxx"
+       ```
+    2. If `applicationStatus` is not "approved", user must complete/retry KYC
+    3. If rejected, check `rejectionReason` and advise user
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Card Issues
+
+<AccordionGroup>
+  <Accordion title="Error: 'Insufficient balance' when creating card">
+    **Symptoms:**
+    - Card creation fails
+    - Error: "Insufficient balance"
+
+    **Causes:**
+    - User's available balance is less than card's `maxAmount`
+    - Funds are tied up in pending transactions
+
+    **Solutions:**
+    1. Check user's balance:
+       ```bash
+       curl https://api.useproxy.ai/v1/balances/user_xxx \
+         -H "Api-Key: lk_live_xxx"
+       ```
+    2. Look at `available` (not `total`) balance
+    3. Either:
+       - Reduce card's `maxAmount`
+       - Have user deposit more funds
+       - Wait for pending transactions to settle
+  </Accordion>
+
+  <Accordion title="Error: 'Declare intent first' when getting card details">
+    **Symptoms:**
+    - `POST /v1/cards/{id}/details` returns error
+    - Message: "Intent declaration required"
+
+    **Causes:**
+    - No intent declared for this card
+    - Intent expired (intents expire after 1 hour)
+
+    **Solutions:**
+    1. Declare intent first:
+       ```bash
+       curl -X POST https://api.useproxy.ai/v1/cards/card_xxx/intents \
+         -H "Api-Key: lk_live_xxx" \
+         -d '{
+           "summary": "Buy headphones",
+           "amount": 15000,
+           "merchantText": "Amazon"
+         }'
+       ```
+    2. Then request card details
+    3. Note: intents expire after 1 hour if details aren't accessed
+  </Accordion>
+
+  <Accordion title="Card shows 'frozen' status unexpectedly">
+    **Symptoms:**
+    - Card transactions are declining
+    - Card status is "frozen"
+
+    **Causes:**
+    - Spending limit exceeded
+    - Risk engine triggered freeze
+    - Manual freeze via API/dashboard
+
+    **Solutions:**
+    1. Check card status and reason:
+       ```bash
+       curl https://api.useproxy.ai/v1/cards/card_xxx \
+         -H "Api-Key: lk_live_xxx"
+       ```
+    2. If limit exceeded: increase limit or create new card
+    3. If risk freeze: review in dashboard, unfreeze if appropriate:
+       ```bash
+       curl -X POST https://api.useproxy.ai/v1/cards/card_xxx/unfreeze \
+         -H "Api-Key: lk_live_xxx"
+       ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Transaction Issues
+
+<AccordionGroup>
+  <Accordion title="Transaction declined: Insufficient funds">
+    **Symptoms:**
+    - Transaction fails at merchant
+    - Decline reason: insufficient funds
+
+    **Causes:**
+    - User balance too low
+    - Card's `maxAmount` exceeded
+    - Pending transactions holding funds
+
+    **Solutions:**
+    1. Check balance and card limits
+    2. Remember: card's `maxAmount` is per-transaction limit
+    3. For multi-use cards, check if daily/monthly limits are exceeded
+  </Accordion>
+
+  <Accordion title="Transaction triggered merchant drift alert">
+    **Symptoms:**
+    - Transaction completes but triggers `risk.merchant_drift` webhook
+    - Card may be frozen (if drift action is `freeze_card`)
+
+    **Causes:**
+    - Multi-use card used at a different merchant than the first transaction
+    - Merchant drift detection is enabled by default for multi-use cards
+
+    **Solutions:**
+    1. If legitimate multi-merchant use, disable drift detection when creating the card:
+       ```bash
+       curl -X POST https://api.useproxy.ai/v1/agents/$AGENT_ID/cards \
+         -H "Api-Key: lk_live_xxx" \
+         -d '{"type": "multi", "merchantDriftEnabled": false, ...}'
+       ```
+    2. Use single-use cards for one-off purchases at different merchants
+    3. If card was frozen, unfreeze it via `POST /v1/cards/{id}/unfreeze`
+  </Accordion>
+
+  <Accordion title="Transaction declined: Card expired or closed">
+    **Symptoms:**
+    - Transaction fails
+    - Card shows as "closed"
+
+    **Causes:**
+    - Single-use card already used
+    - Card manually closed
+    - Card TTL expired
+
+    **Solutions:**
+    - Single-use cards close after one transaction
+    - Check if card was manually closed
+    - Create a new card for the purchase
+  </Accordion>
+
+  <Accordion title="Intent shows 'mismatched' after transaction">
+    **Symptoms:**
+    - Transaction succeeded but intent is "mismatched"
+    - Risk alerts generated
+
+    **Causes:**
+    - Transaction amount differs >10% from declared
+    - Merchant name doesn't match declared merchantText
+
+    **Solutions:**
+    - This is informational—transaction still completes
+    - Review the mismatch details
+    - Improve future intent declarations:
+      - Include taxes/shipping in amount estimate
+      - Use exact merchant strings (check past transactions)
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Webhook Issues
+
+<AccordionGroup>
+  <Accordion title="Webhooks not being received">
+    **Symptoms:**
+    - Events occur but no webhooks arrive
+    - Webhook logs show failures
+
+    **Causes:**
+    - Endpoint unreachable
+    - SSL/TLS issues
+    - Firewall blocking
+    - Endpoint returning errors
+
+    **Solutions:**
+    1. Verify endpoint is publicly accessible
+    2. Check SSL certificate is valid
+    3. Ensure endpoint returns 2xx within 30 seconds
+    4. Test with dashboard "Send Test" feature
+    5. Check your server logs for incoming requests
+  </Accordion>
+
+  <Accordion title="Webhook signature verification failing">
+    **Symptoms:**
+    - Webhooks arrive but signature doesn't match
+
+    **Causes:**
+    - Wrong secret being used
+    - Request body modified by middleware
+    - Encoding issues
+
+    **Solutions:**
+    1. Get correct secret from dashboard or API:
+       ```bash
+       curl https://api.useproxy.ai/v1/webhooks/webhook_xxx/secret \
+         -H "Api-Key: lk_live_xxx"
+       ```
+    2. Verify you're using raw request body (not parsed JSON)
+    3. Check your web framework isn't modifying the body
+  </Accordion>
+
+  <Accordion title="Receiving duplicate webhook events">
+    **Symptoms:**
+    - Same event delivered multiple times
+
+    **Causes:**
+    - Normal behavior—webhooks are delivered at-least-once
+    - Your endpoint may have timed out, triggering retry
+
+    **Solutions:**
+    - Implement idempotency using event ID:
+      ```javascript
+      const processed = new Set();
+
+      function handleWebhook(event) {
+        if (processed.has(event.id)) return;
+        // Process event...
+        processed.add(event.id);
+      }
+      ```
+    - Ensure endpoint responds quickly (< 30s)
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## MCP Issues
+
+<AccordionGroup>
+  <Accordion title="MCP tools not appearing in Claude/Cursor">
+    **Symptoms:**
+    - Connected to MCP server but tools not visible
+    - "No tools available" message
+
+    **Causes:**
+    - Configuration error
+    - Missing or invalid API key
+    - mcp-remote not installed
+
+    **Solutions:**
+    1. Verify config file location and syntax:
+       - Claude Desktop: `~/Library/Application Support/Claude/claude_desktop_config.json`
+       - Cursor: `.cursor/mcp.json`
+    2. Check API key is set:
+       ```json
+       {
+         "env": {
+           "PROXY_API_KEY": "lk_live_xxx"
+         }
+       }
+       ```
+    3. Restart the application after config changes
+    4. Check MCP server logs for errors
+  </Accordion>
+
+  <Accordion title="MCP error: 'Agent token required'">
+    **Symptoms:**
+    - Agent tools fail with authorization error
+    - Admin tools work but agent tools don't
+
+    **Causes:**
+    - Using agent-only tools without agent context
+    - Missing `PROXY_AGENT_TOKEN` or `PROXY_AGENT_ID`
+
+    **Solutions:**
+    - For agent-specific operations, provide agent credentials:
+      ```json
+      {
+        "env": {
+          "PROXY_AGENT_TOKEN": "at_live_xxx",
+          "PROXY_AGENT_ID": "agent_xxx"
+        }
+      }
+      ```
+    - Or use API key which has full access
+  </Accordion>
+
+  <Accordion title="MCP connection timeout">
+    **Symptoms:**
+    - Tools take forever or timeout
+    - Intermittent connection failures
+
+    **Causes:**
+    - Network issues
+    - Firewall blocking outbound connections
+    - Proxy configuration needed
+
+    **Solutions:**
+    1. Test connectivity:
+       ```bash
+       curl https://mcp.useproxy.ai/health
+       ```
+    2. Check firewall allows outbound HTTPS
+    3. If behind proxy, configure proxy settings
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Funding Issues
+
+<AccordionGroup>
+  <Accordion title="Crypto deposit not credited">
+    **Symptoms:**
+    - Sent USDC/USDT but balance not updated
+    - No `deposit.completed` webhook
+
+    **Causes:**
+    - Wrong network (sent on unsupported chain)
+    - Wrong token (sent wrong stablecoin)
+    - Transaction still pending
+
+    **Solutions:**
+    1. Verify supported networks:
+       ```bash
+       curl https://api.useproxy.ai/v1/users/user_xxx/funding \
+         -H "Api-Key: lk_live_xxx"
+       ```
+    2. Check you sent to correct address on correct network
+    3. Verify transaction is confirmed on-chain
+    4. Deposits typically credit within 2-5 minutes after confirmation
+    5. Contact support with transaction hash if not credited after 30 minutes
+  </Accordion>
+
+  <Accordion title="Balance shows but 'available' is lower">
+    **Symptoms:**
+    - Total balance is correct
+    - Available balance is lower than expected
+
+    **Causes:**
+    - Funds held by pending authorizations
+    - Funds allocated to active cards
+
+    **Solutions:**
+    - Check pending transactions
+    - Review active cards and their `maxAmount` reservations
+    - Available = Total - Pending - CardReservations
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Still Need Help?
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Check the full API documentation
+  </Card>
+
+  <Card title="Dashboard" icon="gauge" href="https://dashboard.useproxy.ai">
+    View logs and manage resources
+  </Card>
+
+  <Card title="Status Page" icon="signal" href="https://status.useproxy.ai">
+    Check system status
+  </Card>
+
+  <Card title="Support" icon="headset" href="mailto:support@useproxy.ai">
+    Contact our team
+  </Card>
+</CardGroup>

@@ -1,0 +1,332 @@
+---
+title: "Cards"
+description: "Virtual cards for AI agents"
+---
+
+# Cards
+
+Cards are issued to agents and used to make purchases. There are two types:
+
+| Type | Use case | Behavior |
+|------|----------|----------|
+| **single** | One-time purchase | Auto-closes after transaction |
+| **multi** | Recurring purchases | Reusable with velocity limits |
+
+## Velocity Limits (AI Safety Feature)
+
+<Tip>
+**Why this matters for AI agents:** Multi-use cards support per-transaction, daily, and monthly limits to control agent spending. Combined with attestation requirements and the risk engine's merchant drift detection, you get comprehensive safety controls.
+</Tip>
+
+```bash
+# Create a card with velocity limits
+curl -X POST https://api.useproxy.ai/v1/agents/$AGENT_ID/cards \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "purpose": "DoorDash orders",
+    "type": "multi",
+    "limits": {"perAuth": 5000, "perDay": 20000, "perMonth": 50000}
+  }'
+```
+
+Safety controls available:
+- **Velocity limits** — Per-transaction, daily, and monthly caps
+- **Attestation** — Require intent declaration before each purchase
+- **Merchant drift detection** — Risk engine alerts on unexpected merchants
+- **Time restrictions** — Active hours and days of week
+
+## Single Cards
+
+Create a card, use it once, it closes automatically.
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/agents/$AGENT_ID/cards \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "purpose": "Book flight LAX to JFK",
+    "type": "single",
+    "maxAmount": 50000
+  }'
+```
+
+```json
+{
+  "id": "card_abc123",
+  "status": "active",
+  "type": "single",
+  "maxAmount": 50000,
+  "last4": "4242"
+}
+```
+
+## Multi Cards
+
+Reusable cards for repeat purchases with velocity limits.
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/agents/$AGENT_ID/cards \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "purpose": "Food delivery orders",
+    "type": "multi",
+    "limits": {
+      "perAuth": 5000,
+      "perDay": 20000,
+      "perMonth": 100000
+    },
+    "ttlDays": 30
+  }'
+```
+
+### Merchant Drift Detection
+
+Multi-use cards have **merchant drift detection enabled by default**. When the card is first used, the merchant is captured. If subsequent transactions occur at a different merchant, the risk engine will alert (or freeze the card, depending on `onDrift` setting).
+
+To disable drift detection for a multi-merchant card:
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/agents/$AGENT_ID/cards \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "purpose": "General shopping",
+    "type": "multi",
+    "merchantDriftEnabled": false,
+    "limits": {"perMonth": 100000}
+  }'
+```
+
+| Option | Behavior |
+|--------|----------|
+| Default (no flag) | Drift detection enabled, `onDrift: "alert"` |
+| `onDrift: "freeze"` | Drift detection enabled, auto-freeze on drift |
+| `merchantDriftEnabled: false` | Drift detection disabled |
+
+## Get Card Credentials
+
+Before using a card, request the credentials by providing an attestation:
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/cards/$CARD_ID/details \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "summary": "Order dinner on DoorDash",
+    "expectedAmount": 2500,
+    "merchantText": "DoorDash"
+  }'
+```
+
+```json
+{
+  "accessEventId": "evt_abc123",
+  "pan": "4111111111111111",
+  "cvv": "123",
+  "expirationMonth": "12",
+  "expirationYear": "2025",
+  "last4": "1111"
+}
+```
+
+The `accessEventId` creates an audit trail linking this credential access to the attestation.
+
+## Spending Limits
+
+**Single cards:**
+
+| Field | Description |
+|-------|-------------|
+| `maxAmount` | Maximum transaction amount (cents) |
+
+**Multi cards:**
+
+| Field | Description |
+|-------|-------------|
+| `limits.perAuth` | Max per transaction (cents) |
+| `limits.perDay` | Max per 24 hours (cents) |
+| `limits.perMonth` | Max per calendar month (cents) |
+| `maxAuthCount` | Max number of transactions |
+| `ttlDays` | Card expires after N days |
+
+## Card Status
+
+| Status | Description |
+|--------|-------------|
+| `notActivated` | Card created but not yet activated by provider |
+| `active` | Ready to use |
+| `frozen` | Temporarily disabled |
+| `closed` | Permanently closed |
+
+## Card Actions
+
+Use dedicated action endpoints for status changes:
+
+### Freeze a Card
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/cards/$CARD_ID/freeze \
+  -H "Api-Key: $API_KEY"
+```
+
+### Unfreeze a Card
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/cards/$CARD_ID/unfreeze \
+  -H "Api-Key: $API_KEY"
+```
+
+### Close a Card
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/cards/$CARD_ID/close \
+  -H "Api-Key: $API_KEY"
+```
+
+<Warning>
+  Closed cards cannot be reopened. Use freeze/unfreeze for temporary disabling.
+</Warning>
+
+## Card Policies
+
+Cards support advanced policies for time-based, usage-based, and attestation controls.
+
+### Create Card with Policies
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/agents/$AGENT_ID/cards \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "purpose": "One-hour shopping session",
+    "type": "single",
+    "maxAmount": 10000,
+    "ttlMinutes": 60,
+    "onExpiry": "close"
+  }'
+```
+
+### Get Card Policy Status
+
+```bash
+curl https://api.useproxy.ai/v1/cards/$CARD_ID/policy \
+  -H "Api-Key: $API_KEY"
+```
+
+```json
+{
+  "cardId": "card_abc123",
+  "ttl": {
+    "minutes": 60,
+    "expiresAt": 1703523600000,
+    "isExpired": false,
+    "onExpiry": "close"
+  },
+  "activeHours": {
+    "start": 9,
+    "end": 17,
+    "timezone": "America/New_York",
+    "activeDays": [1, 2, 3, 4, 5],
+    "isWithinActiveHours": true
+  },
+  "cumulative": {
+    "max": 50000,
+    "spent": 12500,
+    "remaining": 37500
+  },
+  "cooldown": {
+    "minutes": 5,
+    "lastTransactionAt": 1703520000000,
+    "cooldownEndsAt": 1703520300000,
+    "isInCooldown": true
+  },
+  "authCount": {
+    "max": 10,
+    "current": 3,
+    "remaining": 7
+  },
+  "attestation": {
+    "required": true,
+    "intentTolerance": 0.1
+  }
+}
+```
+
+### Policy Fields
+
+**Time-Based:**
+
+| Field | Description |
+|-------|-------------|
+| `ttlMinutes` | Auto-expire after N minutes |
+| `onExpiry` | Action when expired: `freeze` or `close` |
+| `activeHoursStart` | Hour (0-23) when card becomes active |
+| `activeHoursEnd` | Hour (0-23) when card becomes inactive |
+| `activeTimezone` | IANA timezone (e.g., "America/New_York") |
+| `activeDays` | Days of week (0=Sun, 1=Mon, ..., 6=Sat) |
+
+**Usage-Based:**
+
+| Field | Description |
+|-------|-------------|
+| `maxAuthCount` | Close after N transactions |
+| `cooldownMinutes` | Min time between transactions |
+| `cumulativeMax` | Close after total spending reaches this (cents) |
+
+**Intent/Attestation:**
+
+| Field | Description |
+|-------|-------------|
+| `requireAttestation` | Must declare intent before each use |
+| `intentTolerance` | Max % deviation from declared amount (0.0-1.0) |
+
+### Policy Examples
+
+**Business hours only:**
+
+```json
+{
+  "purpose": "Business expense card",
+  "type": "multi",
+  "activeHoursStart": 9,
+  "activeHoursEnd": 17,
+  "activeTimezone": "America/New_York",
+  "activeDays": [1, 2, 3, 4, 5]
+}
+```
+
+**Auto-freeze after 1 hour:**
+
+```json
+{
+  "purpose": "Quick shopping trip",
+  "type": "single",
+  "maxAmount": 10000,
+  "ttlMinutes": 60,
+  "onExpiry": "freeze"
+}
+```
+
+**Rate-limited with attestation:**
+
+```json
+{
+  "purpose": "Recurring purchases",
+  "type": "multi",
+  "cooldownMinutes": 5,
+  "requireAttestation": true,
+  "intentTolerance": 0.1
+}
+```
+
+## Webhooks
+
+| Event | Description |
+|-------|-------------|
+| `card.created` | Card issued |
+| `card.frozen` | Card frozen |
+| `card.closed` | Card closed |
+| `card.expired` | TTL reached (auto freeze/close) |
+| `risk.merchant_drift` | Transaction at unexpected merchant (if risk detection enabled) |

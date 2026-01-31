@@ -1,0 +1,186 @@
+---
+title: "Webhooks"
+description: "Real-time event notifications"
+---
+
+# Webhooks
+
+Webhooks allow you to receive real-time notifications when events occur in your account. Instead of polling the API, webhooks push data to your server when things happen.
+
+## How It Works
+
+<Steps>
+  <Step title="Configure Endpoint">
+    Add a webhook endpoint URL in your Dashboard
+  </Step>
+  <Step title="Subscribe to Events">
+    Choose which events you want to receive
+  </Step>
+  <Step title="Receive Events">
+    Your server receives POST requests with event data
+  </Step>
+  <Step title="Acknowledge">
+    Return 2xx status to confirm receipt
+  </Step>
+</Steps>
+
+## Event Format
+
+All webhook events follow this structure:
+
+```json
+{
+  "id": "evt_abc123",
+  "type": "transaction.completed",
+  "organizationId": "org_xyz",
+  "createdAt": 1703520000000,
+  "data": {
+    "transactionId": "txn_123",
+    "cardId": "card_456",
+    "amount": 2500,
+    "merchantName": "DoorDash"
+  }
+}
+```
+
+## Event Types
+
+### Transactions
+| Event | Description |
+|-------|-------------|
+| `transaction.authorized` | Pending hold placed |
+| `transaction.completed` | Transaction settled |
+| `transaction.declined` | Transaction rejected |
+| `transaction.reversed` | Refund processed |
+
+### Cards
+| Event | Description |
+|-------|-------------|
+| `card.created` | Card issued |
+| `card.frozen` | Card frozen |
+| `card.closed` | Card closed |
+| `card.expired` | TTL reached |
+
+### Agents
+| Event | Description |
+|-------|-------------|
+| `agent.created` | Agent created |
+| `agent.suspended` | Agent suspended |
+| `agent.limit_exceeded` | Spending limit hit |
+
+### Users
+| Event | Description |
+|-------|-------------|
+| `user.application.approved` | KYC passed |
+| `user.application.denied` | KYC failed |
+| `user.balance.updated` | Balance changed |
+
+### KYB (Business Verification)
+| Event | Description |
+|-------|-------------|
+| `kyb.submitted` | KYB application submitted |
+| `kyb.approved` | KYB application approved |
+| `kyb.denied` | KYB application denied |
+| `kyb.document_uploaded` | Document uploaded |
+| `kyb.owner_added` | Beneficial owner added |
+| `kyb.owner_verified` | Owner identity verified |
+
+### Deposits & Withdrawals
+| Event | Description |
+|-------|-------------|
+| `deposit.received` | Funds received |
+| `deposit.address_ready` | Deposit address available |
+| `withdrawal.submitted` | Withdrawal initiated |
+| `withdrawal.confirmed` | Withdrawal confirmed |
+| `withdrawal.failed` | Withdrawal failed |
+
+### 3DS
+| Event | Description |
+|-------|-------------|
+| `challenge.requested` | OTP available |
+
+### Disputes
+| Event | Description |
+|-------|-------------|
+| `dispute.created` | Chargeback initiated |
+| `dispute.resolved` | Chargeback resolved |
+
+## Signature Verification
+
+All webhooks include a signature for verification:
+
+**Headers:**
+- `svix-id` - Unique message ID
+- `svix-timestamp` - Unix timestamp
+- `svix-signature` - HMAC signature
+
+**Verification (Node.js):**
+
+```javascript
+import { Webhook } from 'svix';
+
+const webhook = new Webhook(process.env.WEBHOOK_SECRET);
+
+app.post('/webhooks', (req, res) => {
+  try {
+    const payload = webhook.verify(
+      req.body,
+      {
+        'svix-id': req.headers['svix-id'],
+        'svix-timestamp': req.headers['svix-timestamp'],
+        'svix-signature': req.headers['svix-signature']
+      }
+    );
+
+    // Process the event
+    console.log(payload.type, payload.data);
+
+    res.status(200).send('OK');
+  } catch (err) {
+    res.status(400).send('Invalid signature');
+  }
+});
+```
+
+## Retry Policy
+
+Failed deliveries are retried with exponential backoff:
+
+| Attempt | Delay |
+|---------|-------|
+| 1 | Immediate |
+| 2 | 5 seconds |
+| 3 | 5 minutes |
+| 4 | 30 minutes |
+| 5 | 2 hours |
+| 6 | 5 hours |
+| 7 | 10 hours |
+| 8 | 24 hours |
+
+After 8 failed attempts, the event is marked as failed.
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Return 2xx quickly">
+    Process events asynchronously. Return 200 immediately, then process in background.
+  </Accordion>
+  <Accordion title="Handle duplicates">
+    Use the `id` field to deduplicate. The same event may be delivered multiple times.
+  </Accordion>
+  <Accordion title="Verify signatures">
+    Always verify the webhook signature to ensure authenticity.
+  </Accordion>
+  <Accordion title="Use HTTPS">
+    Your endpoint must use HTTPS in production.
+  </Accordion>
+</AccordionGroup>
+
+## Testing
+
+Use the Dashboard to send test events to your endpoint:
+
+1. Go to **Settings > Webhooks**
+2. Select your endpoint
+3. Click **Send Test Event**
+4. Choose an event type

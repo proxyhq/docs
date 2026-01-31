@@ -1,0 +1,279 @@
+---
+title: "Agents"
+description: "AI agents that make purchases"
+---
+
+# Agents
+
+An Agent represents your AI agent registered with Proxy API. Agents belong to Users and can have multiple Cards.
+
+## Users vs Agents
+
+**Users** are the funding source. They complete KYC and deposit funds.
+
+**Agents** are the spenders. They issue cards and make purchases against the user's balance.
+
+**Example setups:**
+
+| Scenario | Users | Agents |
+|----------|-------|--------|
+| Your company funds all AI spending | 1 user (your company) | Multiple agents (one per workflow) |
+| Your customers fund their own AI | 1 user per customer | Agents act on each customer's behalf |
+
+```
+User (funding source)
+    └── Agent (AI agent)
+          └── Cards
+```
+
+## Register an Agent
+
+Register your existing AI agent with Proxy API. The `externalId` is your identifier for the agent (unique within your organization).
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/agents/register \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "externalId": "my-shopping-agent",
+    "userId": "user_abc123",
+    "name": "Shopping Agent",
+    "spendingLimit": 50000,
+    "spendingLimitFrequency": "perMonth"
+  }'
+```
+
+```json
+{
+  "object": "agent",
+  "id": "jd74kxm...",
+  "externalId": "my-shopping-agent",
+  "userId": "user_abc123",
+  "name": "Shopping Agent",
+  "status": "active",
+  "spendingLimit": 50000,
+  "spendingLimitFrequency": "perMonth",
+  "currentSpend": 0,
+  "created": true,
+  "token": "at_live_abc123..."
+}
+```
+
+### Registration Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `externalId` | string | Yes | Your identifier for the agent (unique per org) |
+| `userId` | string | Yes | User who funds this agent |
+| `name` | string | Yes | Display name |
+| `description` | string | No | Optional description |
+| `spendingLimit` | number | No | Max spend in cents |
+| `spendingLimitFrequency` | string | No | Reset period |
+| `onLimitExceeded` | string | No | Action when limit hit |
+| `maxCards` | number | No | Max concurrent cards |
+| `defaultCardLimit` | number | No | Default limit for new cards |
+| `defaultPolicyId` | string | No | Default policy template |
+
+### Idempotent Registration
+
+Registration is idempotent. If you register the same `externalId` again:
+
+- **Same userId**: Returns the existing agent with `created: false` (no new token)
+- **Different userId**: Returns 409 error
+
+```json
+{
+  "object": "agent",
+  "id": "jd74kxm...",
+  "externalId": "my-shopping-agent",
+  "created": false,
+  "token": null
+}
+```
+
+### Get Agent by External ID
+
+Look up an agent by your external identifier:
+
+```bash
+curl "https://api.useproxy.ai/v1/agents?external_id=my-shopping-agent" \
+  -H "Api-Key: $API_KEY"
+```
+
+## Agent Tokens
+
+When you register an agent, you receive an agent token. Tokens allow agents to authenticate directly for card operations.
+
+### Token Format
+
+- Test: `at_test_xxxxxxxx...`
+- Live: `at_live_xxxxxxxx...`
+
+### Create Additional Tokens
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/agents/$AGENT_ID/tokens \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "staging-environment"
+  }'
+```
+
+```json
+{
+  "object": "agent_token",
+  "id": "jh82nwk...",
+  "agentId": "jd74kxm...",
+  "tokenPrefix": "at_live_abc12345",
+  "name": "staging-environment",
+  "isActive": true,
+  "token": "at_live_abc12345..."
+}
+```
+
+<Warning>
+The full token is only returned once at creation. Store it securely.
+</Warning>
+
+### List Tokens
+
+```bash
+curl https://api.useproxy.ai/v1/agents/$AGENT_ID/tokens \
+  -H "Api-Key: $API_KEY"
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "jh82nwk...",
+      "agentId": "jd74kxm...",
+      "tokenPrefix": "at_live_abc12345",
+      "name": "staging-environment",
+      "isActive": true,
+      "createdAt": 1704067200000
+    }
+  ]
+}
+```
+
+### Revoke Token
+
+```bash
+curl -X DELETE https://api.useproxy.ai/v1/agents/$AGENT_ID/tokens/$TOKEN_ID \
+  -H "Api-Key: $API_KEY"
+```
+
+## Spending Limits
+
+Limit total spending across all of an agent's cards:
+
+| Field | Description |
+|-------|-------------|
+| `spendingLimit` | Max spend in cents |
+| `spendingLimitFrequency` | Reset period |
+| `onLimitExceeded` | What happens when limit is hit |
+
+**Frequencies:** `perTransaction`, `per24HourPeriod`, `perWeek`, `perMonth`, `perYear`, `allTime`
+
+**When limit exceeded:**
+
+| Value | Behavior |
+|-------|----------|
+| `suspend` | Freeze agent and all its cards |
+| `notify` | Send webhook, allow transactions |
+| `none` | Just track |
+
+## Status
+
+| Status | Description |
+|--------|-------------|
+| `active` | Can create cards and transact |
+| `suspended` | All cards frozen |
+| `deregistered` | Soft deleted, cannot be used |
+
+### Suspend/Activate via PATCH
+
+Use `PATCH /v1/agents/:id` to change status:
+
+```bash
+# Suspend an agent (freezes all cards)
+curl -X PATCH https://api.useproxy.ai/v1/agents/$AGENT_ID \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "status": "suspended" }'
+
+# Reactivate an agent (unfreezes all cards)
+curl -X PATCH https://api.useproxy.ai/v1/agents/$AGENT_ID \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "status": "active" }'
+```
+
+## Deregister an Agent
+
+Soft-deletes the agent and revokes all tokens. Cards remain for audit but cannot transact.
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/agents/$AGENT_ID/deregister \
+  -H "Api-Key: $API_KEY"
+```
+
+```json
+{
+  "object": "agent",
+  "id": "jd74kxm...",
+  "externalId": "my-shopping-agent",
+  "status": "deregistered",
+  "deregisteredAt": 1704067200000
+}
+```
+
+<Note>
+After deregistration, you can register a new agent with the same `externalId`.
+</Note>
+
+## Check Spending
+
+```bash
+curl https://api.useproxy.ai/v1/agents/$AGENT_ID/policy \
+  -H "Api-Key: $API_KEY"
+```
+
+```json
+{
+  "agentId": "jd74kxm...",
+  "spendingLimit": 50000,
+  "spendingLimitFrequency": "perMonth",
+  "currentSpend": 25000,
+  "remaining": 25000
+}
+```
+
+## Webhooks
+
+| Event | Description |
+|-------|-------------|
+| `agent.registered` | Agent registered |
+| `agent.deregistered` | Agent deregistered |
+| `agent.updated` | Agent updated (including status changes) |
+| `agent.limit_exceeded` | Limit hit |
+| `agent.limit_approaching` | Approaching limit (80%) |
+| `agent.token.created` | New token generated |
+| `agent.token.revoked` | Token revoked |
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/v1/agents/register` | Register agent (idempotent) |
+| GET | `/v1/agents` | List agents |
+| GET | `/v1/agents/:agentId` | Get agent |
+| PATCH | `/v1/agents/:agentId` | Update agent |
+| POST | `/v1/agents/:agentId/deregister` | Deregister agent (soft delete) |
+| POST | `/v1/agents/:agentId/cards` | Create card for agent |
+| GET | `/v1/agents/:agentId/cards` | List agent's cards |
+| POST | `/v1/agents/:agentId/tokens` | Create agent token |
+| DELETE | `/v1/agents/:agentId/tokens/:tokenId` | Revoke agent token |

@@ -1,0 +1,170 @@
+---
+title: "Errors"
+description: "API error codes and troubleshooting"
+---
+
+# Errors
+
+The Proxy API uses conventional HTTP response codes and returns structured error objects to indicate the success or failure of API requests.
+
+## Error Response Format
+
+All errors follow this structure:
+
+```json
+{
+  "error": {
+    "type": "authentication_error",
+    "code": "invalid_api_key",
+    "message": "Invalid API key"
+  },
+  "request_id": "req_abc123def456"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `type` | The category of error |
+| `code` | Specific error code for programmatic handling |
+| `message` | Human-readable description |
+| `request_id` | Unique ID for support requests |
+
+## Error Types
+
+| Type | Description |
+|------|-------------|
+| `authentication_error` | Invalid or missing API key |
+| `authorization_error` | Valid auth but insufficient permissions |
+| `invalid_request_error` | Invalid parameters or malformed request |
+| `validation_error` | Request body failed validation |
+| `not_found_error` | Resource doesn't exist |
+| `conflict_error` | Resource state conflict |
+| `rate_limit_error` | Too many requests |
+| `service_error` | Internal or upstream service error |
+
+## Common Error Codes
+
+### Authentication Errors
+
+| Code | Status | Description |
+|------|--------|-------------|
+| `missing_api_key` | 401 | No `Api-Key` header provided |
+| `invalid_api_key` | 401 | API key is invalid or revoked |
+| `expired_api_key` | 401 | API key has expired |
+
+### Authorization Errors
+
+| Code | Status | Description |
+|------|--------|-------------|
+| `access_denied` | 403 | No permission to access this resource |
+| `insufficient_permissions` | 403 | Operation requires elevated permissions |
+
+### Validation Errors
+
+| Code | Status | Description |
+|------|--------|-------------|
+| `validation_failed` | 400 | Request body failed schema validation |
+| `parameter_missing` | 400 | Required parameter not provided |
+| `parameter_invalid` | 400 | Parameter value is invalid |
+| `body_parse_error` | 400 | Request body is not valid JSON |
+
+### Resource Errors
+
+| Code | Status | Description |
+|------|--------|-------------|
+| `not_found` | 404 | Resource not found |
+| `user_not_found` | 404 | User ID doesn't exist |
+| `agent_not_found` | 404 | Agent ID doesn't exist |
+| `card_not_found` | 404 | Card ID doesn't exist |
+| `transaction_not_found` | 404 | Transaction ID doesn't exist |
+
+### Card Errors
+
+| Code | Status | Description |
+|------|--------|-------------|
+| `card_not_active` | 400 | Card must be active for this operation |
+| `card_already_closed` | 409 | Card has already been closed |
+| `card_already_frozen` | 409 | Card is already frozen |
+| `agent_suspended` | 400 | Cannot create cards for suspended agent |
+| `max_cards_reached` | 400 | Agent has reached maximum card limit |
+
+### Business Logic Errors
+
+| Code | Status | Description |
+|------|--------|-------------|
+| `insufficient_funds` | 400 | User balance too low for this operation |
+| `spending_limit_exceeded` | 400 | Agent or card spending limit reached |
+| `kyc_required` | 400 | User must complete KYC before this operation |
+| `kyc_pending` | 400 | KYC verification in progress |
+| `kyc_denied` | 400 | User KYC was denied |
+| `user_not_active` | 400 | User account is not active |
+| `merchant_drift` | 400 | Transaction merchant differs from card's first merchant (drift detection) |
+| `outside_active_hours` | 400 | Card can only be used during active hours |
+| `cooldown_active` | 400 | Must wait before next transaction (cooldown policy) |
+| `attestation_required` | 400 | Card requires attestation before credential access |
+| `intent_expired` | 400 | Referenced intent has expired |
+| `withdrawal_exceeds_balance` | 400 | Withdrawal amount exceeds available spending power |
+
+### Rate Limiting
+
+| Code | Status | Description |
+|------|--------|-------------|
+| `rate_limit_exceeded` | 429 | Too many requests, retry after delay |
+
+When rate limited, check the `Retry-After` header for seconds until you can retry.
+
+## HTTP Status Codes
+
+| Code | Meaning |
+|------|---------|
+| `200` | Success |
+| `201` | Created |
+| `400` | Bad Request - Invalid parameters |
+| `401` | Unauthorized - Invalid API key |
+| `403` | Forbidden - Access denied |
+| `404` | Not Found - Resource doesn't exist |
+| `409` | Conflict - Resource state conflict |
+| `429` | Too Many Requests - Rate limited |
+| `500` | Server Error - Internal error |
+| `502` | Bad Gateway - Upstream service error |
+| `503` | Service Unavailable - Temporary outage |
+
+## Handling Errors
+
+```javascript
+const response = await fetch('https://api.useproxy.ai/v1/agents', {
+  headers: { 'Api-Key': apiKey }
+});
+
+if (!response.ok) {
+  const { error, request_id } = await response.json();
+
+  switch (error.type) {
+    case 'authentication_error':
+      // Check API key configuration
+      break;
+    case 'rate_limit_error':
+      // Wait and retry
+      const retryAfter = response.headers.get('Retry-After');
+      await sleep(retryAfter * 1000);
+      break;
+    case 'validation_error':
+      // Fix request parameters
+      console.error(error.message);
+      break;
+    default:
+      // Log request_id for support
+      console.error(`Error ${error.code}: ${error.message} (${request_id})`);
+  }
+}
+```
+
+## Getting Help
+
+When contacting support, always include:
+
+1. The `request_id` from the error response
+2. The endpoint you were calling
+3. The timestamp of the request
+
+This helps us quickly locate and diagnose the issue.

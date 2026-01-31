@@ -1,0 +1,236 @@
+---
+title: "Authentication"
+description: "How to authenticate with the Proxy API"
+---
+
+# Authentication
+
+All API requests must include your API key in the `Api-Key` header.
+
+## API Keys
+
+API keys are scoped to your organization and can be created in the [Dashboard](https://dashboard.useproxy.ai).
+
+| Environment | Key Prefix | Description |
+|-------------|------------|-------------|
+| Test | `lk_test_` | Sandbox/test data |
+| Live | `lk_live_` | Real transactions |
+
+<Warning>
+  **Security Best Practices**
+  - Never expose API keys in client-side code
+  - Don't commit keys to version control
+  - Rotate keys periodically
+  - Use separate keys for test and live
+</Warning>
+
+## Making Authenticated Requests
+
+Include your API key in the `Api-Key` header:
+
+<CodeGroup>
+```bash cURL
+curl https://api.useproxy.ai/v1/agents \
+  -H "Api-Key: lk_test_your_api_key"
+```
+
+```javascript Node.js
+const response = await fetch('https://api.useproxy.ai/v1/agents', {
+  headers: {
+    'Api-Key': 'lk_test_your_api_key'
+  }
+});
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://api.useproxy.ai/v1/agents',
+    headers={'Api-Key': 'lk_test_your_api_key'}
+)
+```
+</CodeGroup>
+
+## Agent Tokens
+
+Agent tokens are scoped credentials for AI agents at runtime.
+
+| Environment | Token Prefix | Description |
+|-------------|--------------|-------------|
+| Test | `at_test_` | Sandbox agent access |
+| Live | `at_live_` | Production agent access |
+
+Use an agent token for agent-scoped endpoints (card details, intents, transactions) via `Authorization: Bearer`:
+
+```bash
+curl https://api.useproxy.ai/v1/cards/{cardId}/details \
+  -H "Authorization: Bearer at_test_your_agent_token"
+```
+
+## Error Responses
+
+### Missing API Key
+
+```json
+{
+  "error": {
+    "type": "authentication_error",
+    "code": "missing_api_key",
+    "message": "Missing Api-Key header"
+  },
+  "request_id": "req_abc123"
+}
+```
+
+**Status:** `401 Unauthorized`
+
+### Invalid API Key
+
+```json
+{
+  "error": {
+    "type": "authentication_error",
+    "code": "invalid_api_key",
+    "message": "Invalid API key"
+  },
+  "request_id": "req_abc123"
+}
+```
+
+**Status:** `401 Unauthorized`
+
+<Card title="Error Codes Reference" icon="circle-exclamation" href="/errors">
+  See all error codes and troubleshooting tips
+</Card>
+
+## How Agents Authenticate
+
+Agents don't have their own API keys. Use:
+
+- **Org API key** for admin operations (users, agents, cards, policies, webhooks).
+- **Agent token** for agent-scoped operations (card details, intents, transactions).
+
+```
+Organization (owns API key)
+    └── API Key authenticates ALL requests
+          └── Register agents, issue cards, retrieve credentials
+```
+
+**This is a delegated trust model:**
+
+1. Your backend holds the org API key (never expose to clients)
+2. Your AI agent requests card credentials through your backend
+3. Your backend calls Proxy API with the org key
+4. Attestation creates an audit trail of what the agent claimed
+
+```mermaid
+sequenceDiagram
+    participant AI as AI Agent
+    participant Backend as Your Backend
+    participant API as Proxy API
+
+    AI->>Backend: "I need to buy X"
+    Backend->>API: POST /cards/:id/details (Api-Key header)
+    API-->>Backend: PAN, CVV, expiration
+    Backend-->>AI: Card credentials
+    AI->>Merchant: Make purchase
+```
+
+<Info>
+Agents are logical identities for organizing spending limits and audit trails — not separate authenticated principals.
+</Info>
+
+## Rate Limits
+
+API requests are rate-limited per organization:
+
+| Operation | Rate | Burst |
+|-----------|------|-------|
+| Read (GET) | 100/min | 20 |
+| Write (POST/PATCH/DELETE) | 30/min | 10 |
+| Card Creation | 10/min | 5 |
+
+When rate limited, you'll receive:
+
+```json
+{
+  "error": {
+    "type": "rate_limit_error",
+    "code": "rate_limit_exceeded",
+    "message": "Rate limit exceeded. Retry after 5 seconds."
+  },
+  "request_id": "req_abc123"
+}
+```
+
+**Status:** `429 Too Many Requests`
+
+**Headers:**
+- `Retry-After`: Seconds until you can retry
+
+## Request IDs
+
+Every API response includes a unique request ID in the `X-Request-Id` header and response body. Include this when contacting support.
+
+```bash
+curl -i https://api.useproxy.ai/v1/agents \
+  -H "Api-Key: lk_test_your_api_key"
+
+# Response headers include:
+# X-Request-Id: req_abc123def456
+```
+
+## Idempotency
+
+For POST requests, you can include an `Idempotency-Key` header to ensure the request is only processed once:
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/agents/register \
+  -H "Api-Key: lk_test_your_api_key" \
+  -H "Idempotency-Key: unique-request-id-123" \
+  -H "Content-Type: application/json" \
+  -d '{"externalId": "my-agent", "userId": "user_abc", "name": "My Agent"}'
+```
+
+If you retry with the same idempotency key within 24 hours, you'll receive the original response.
+
+## Managing API Keys
+
+### Create a Key
+
+1. Go to [Dashboard](https://dashboard.useproxy.ai)
+2. Navigate to **Settings > API Keys**
+3. Click **Create Key**
+4. Name your key and set expiration (optional)
+5. Copy the key immediately (it won't be shown again)
+
+### Revoke a Key
+
+1. Go to **Settings > API Keys**
+2. Find the key you want to revoke
+3. Click **Revoke**
+
+<Note>
+  Revoking a key is immediate and permanent. Any requests using that key will fail.
+</Note>
+
+## Base URL
+
+All API requests should be made to:
+
+```
+https://api.useproxy.ai
+```
+
+<Info>
+  The same base URL is used for both test (`lk_test_`) and live (`lk_live_`) keys. The key prefix determines the environment.
+</Info>
+
+<Info>
+  Use test keys for sandbox workflows. No real charges are made and you can use test credentials.
+</Info>
+
+<Info>
+  In test mode, Proxy returns mock data for KYC and balances. Set `PROXY_TEST_FORCE_MOCK=true` to always use mocks.
+</Info>

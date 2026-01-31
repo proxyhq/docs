@@ -1,0 +1,274 @@
+---
+title: "Auditors"
+description: "Specialized agents that monitor intents and transactions for anomalies"
+---
+
+# Auditors
+
+Auditors are Proxy's specialized monitoring agents. They work alongside the rule-based [risk engine](/concepts/risk-policies) to provide human-readable explanations and catch edge cases that rules miss.
+
+## How it works
+
+| Auditor | Trigger | Purpose |
+|---------|---------|---------|
+| **Intent Auditor** | Intent enters `pending_approval` | Detect fraud patterns, recommend approve/reject |
+| **Transaction Auditor** | Risk engine detects anomalies | Explain anomalies in plain English, assess severity |
+
+Both auditors use confidence-based routing:
+
+```
+High confidence + approve → Auto-approve (no human needed)
+High confidence + reject  → Auto-reject (no human needed)
+Low confidence OR review  → Flag for human review
+```
+
+## Intent Auditor
+
+Analyzes spending intents before credentials are revealed. Focuses on **anomaly detection**, not semantic policing.
+
+### Philosophy
+
+The Intent Auditor detects fraud patterns and numerical anomalies—it does NOT police whether purchases "match" the card's purpose field. The card's `purpose` is treated as documentation (like a sticky note), not a restriction.
+
+**What it flags:**
+- Amount 5-20x agent's historical average
+- Rapid-fire intents (velocity anomaly)
+- New agents with no transaction history
+- Configured spending limits exceeded
+
+**What it does NOT flag:**
+- Intent "doesn't match" card purpose
+- Different merchant than usual
+- First-time purchase category
+
+### Enable Intent Auditor
+
+```bash
+curl -X PATCH https://api.useproxy.ai/v1/settings/auditors \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "intentAuditor": {
+      "enabled": true,
+      "autoApproveThreshold": 0.8,
+      "autoRejectThreshold": 0.9
+    }
+  }'
+```
+
+### Confidence thresholds
+
+| Threshold | Default | Purpose |
+|-----------|---------|---------|
+| `autoApproveThreshold` | 0.8 | Auto-approve if recommendation is "approve" with confidence ≥ this |
+| `autoRejectThreshold` | 0.9 | Auto-reject if recommendation is "reject" with confidence ≥ this |
+
+When confidence falls below these thresholds, the intent is flagged for human review via webhook.
+
+### Example: Intent analysis
+
+Given this context:
+- Agent: "ShoppingBot" (3 prior transactions, avg $45)
+- Intent: "Purchase gaming console" for $499
+- Card limits: $500/auth, $1000/day
+
+The Intent Auditor might respond:
+
+```json
+{
+  "severity": "medium",
+  "category": "amount_anomaly",
+  "summary": "Amount is 11x agent's historical average",
+  "explanation": "This intent requests $499, which is significantly higher than this agent's average transaction of $45. However, the amount is within the card's configured limits. This appears to be a legitimate larger purchase rather than fraud.",
+  "recommendation": "review",
+  "confidence": 0.65
+}
+```
+
+Result: Flagged for human review (confidence 0.65 < threshold 0.8).
+
+## Transaction Auditor
+
+Explains anomalies detected by the rule-based risk engine in human-readable language. Triggered automatically when the risk engine flags a transaction.
+
+### What it analyzes
+
+For each anomaly type detected by the risk engine:
+
+| Anomaly | Explanation provided |
+|---------|---------------------|
+| `duplicate` | Why duplicate transactions are concerning (double-charge, automation error, fraud) |
+| `velocity` | Context on transaction frequency (legitimate burst vs attack pattern) |
+| `spend_spike` | Historical spending context (seasonal variation vs anomaly) |
+| `unattested` | What unattested means and why it matters |
+| `intent_mismatch` | How the transaction differs from declared intent |
+| `cooldown` | Why the cooldown was set and if violation is concerning |
+| `merchant_drift` | Whether the merchant change is suspicious or legitimate |
+
+### Cross-pattern analysis
+
+The Transaction Auditor looks for combinations that are more concerning together:
+
+| Pattern | Concern |
+|---------|---------|
+| Velocity + spend_spike | Potential automated attack |
+| Intent_mismatch + merchant_drift | Possible card theft |
+| Unattested + high amount | Significant unauthorized risk |
+
+### Enable Transaction Auditor
+
+```bash
+curl -X PATCH https://api.useproxy.ai/v1/settings/auditors \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transactionAuditor": {
+      "enabled": true,
+      "autoAlertThreshold": 0.85
+    }
+  }'
+```
+
+### Example: Transaction analysis
+
+Given anomalies detected by risk engine:
+- `unattested` (no credential access recorded)
+- `intent_mismatch` (expected $50 at Staples, got $150 at AWS)
+- `spend_spike` (6x baseline spending rate)
+
+The Transaction Auditor might respond:
+
+```json
+{
+  "severity": "high",
+  "category": "cross_pattern",
+  "summary": "Multiple anomalies indicate potential unauthorized use",
+  "explanation": "This transaction shows three concerning patterns: it was unattested (no credential access recorded), it mismatched the declared intent (expected $50 at Staples, got $150 at AWS), and spending rate is 6x the baseline. The combination of intent mismatch with unattested spend suggests the card credentials may have been exposed.",
+  "recommendation": "reject",
+  "confidence": 0.88
+}
+```
+
+Result: Card auto-frozen (high severity + reject recommendation).
+
+## Webhook events
+
+Auditors emit webhook events when human review is needed:
+
+| Event | Description |
+|-------|-------------|
+| `intent.audit_flagged` | Intent flagged by auditor for human review |
+| `transaction.audit_flagged` | Transaction flagged by auditor for human review |
+
+### Intent flagged webhook
+
+```json
+{
+  "type": "intent.audit_flagged",
+  "data": {
+    "intentId": "intent_abc123",
+    "findingId": "finding_xyz789",
+    "severity": "medium",
+    "category": "amount_anomaly",
+    "summary": "Amount is 11x agent's historical average",
+    "explanation": "This intent requests $499, which is significantly higher...",
+    "recommendation": "review",
+    "confidence": 0.65,
+    "reason": "Low confidence (65%) - needs human judgment"
+  }
+}
+```
+
+### Transaction flagged webhook
+
+```json
+{
+  "type": "transaction.audit_flagged",
+  "data": {
+    "transactionId": "txn_def456",
+    "findingId": "finding_uvw321",
+    "severity": "high",
+    "category": "cross_pattern",
+    "summary": "Multiple anomalies indicate potential unauthorized use",
+    "explanation": "This transaction shows three concerning patterns...",
+    "recommendation": "review",
+    "confidence": 0.72,
+    "riskEngineAnomalies": ["unattested", "intent_mismatch", "spend_spike"],
+    "reason": "Low confidence (72%) - needs human judgment"
+  }
+}
+```
+
+## Responding to flagged items
+
+### Approve or reject flagged intents
+
+```bash
+# Approve a flagged intent
+curl -X POST https://api.useproxy.ai/v1/intents/$INTENT_ID/approve \
+  -H "Api-Key: $API_KEY"
+
+# Reject a flagged intent
+curl -X POST https://api.useproxy.ai/v1/intents/$INTENT_ID/reject \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "Suspicious amount for this agent"}'
+```
+
+### Query auditor findings
+
+```bash
+# Get findings for an intent
+curl https://api.useproxy.ai/v1/intents/$INTENT_ID/findings \
+  -H "Api-Key: $API_KEY"
+
+# Get findings for a transaction
+curl https://api.useproxy.ai/v1/transactions/$TXN_ID/findings \
+  -H "Api-Key: $API_KEY"
+```
+
+## Auditor findings
+
+All auditor findings are stored for audit trails:
+
+| Field | Description |
+|-------|-------------|
+| `severity` | `low`, `medium`, `high`, `critical` |
+| `category` | Type of finding (e.g., `amount_anomaly`, `cross_pattern`) |
+| `summary` | One-line finding |
+| `explanation` | Human-readable explanation |
+| `recommendation` | `approve`, `reject`, `review`, `alert`, `no_action` |
+| `confidence` | 0.0 to 1.0 |
+| `tokenUsage` | Model token consumption |
+
+## Relationship with risk engine
+
+The Auditors complement the rule-based risk engine:
+
+| Component | Type | Purpose |
+|-----------|------|---------|
+| Risk Engine | Rules | Fast, deterministic anomaly detection |
+| Intent Auditor | Agent | Pre-transaction fraud pattern detection |
+| Transaction Auditor | Agent | Post-detection explanation and severity assessment |
+
+```
+Intent created
+    ↓
+[Intent Auditor] → Analyze patterns → Approve/Reject/Flag
+    ↓
+Credentials revealed (if approved)
+    ↓
+Transaction occurs
+    ↓
+[Risk Engine] → Detect anomalies → Execute actions
+    ↓
+[Transaction Auditor] → Explain findings → Emit webhook
+```
+
+## Best practices
+
+1. **Start with moderate thresholds** - Use 0.8 for auto-approve, 0.9 for auto-reject
+2. **Monitor flagged items** - Track how often items are flagged vs auto-resolved
+3. **Tune based on your agents** - Trusted agents may warrant lower review thresholds
+4. **Use webhooks for HITL** - Build approval workflows for flagged items
+5. **Review findings regularly** - Explanations help identify policy gaps

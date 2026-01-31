@@ -1,0 +1,117 @@
+---
+title: "Quickstart"
+description: "Connect to Proxy API MCP server in 5 minutes"
+---
+
+# Quickstart
+
+Get your AI agent connected to Proxy in minutes.
+
+## Prerequisites
+
+- A Proxy API account with API key (`lk_test_xxx`)
+- An MCP-compatible client (Claude Desktop, Cursor, or mcp-remote)
+
+## Claude Desktop
+
+Add to your Claude Desktop config file:
+
+<Tabs>
+  <Tab title="macOS">
+    Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+  </Tab>
+  <Tab title="Windows">
+    Edit `%APPDATA%\Claude\claude_desktop_config.json`:
+  </Tab>
+</Tabs>
+
+```json
+{
+  "mcpServers": {
+    "proxy": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://mcp.useproxy.ai/api/mcp"],
+      "env": {
+        "PROXY_API_KEY": "lk_test_your_api_key"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Desktop. You should see "proxy" in the MCP servers list.
+
+## Cursor
+
+Add to your Cursor settings (`.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "proxy": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://mcp.useproxy.ai/api/mcp"],
+      "env": {
+        "PROXY_API_KEY": "lk_test_your_api_key"
+      }
+    }
+  }
+}
+```
+
+## Agent Token (Runtime)
+
+For production agents, use an agent token instead of an API key (use `at_test_` in sandbox, `at_live_` in production):
+
+```json
+{
+  "mcpServers": {
+    "proxy": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://mcp.useproxy.ai/api/mcp"],
+      "env": {
+        "PROXY_AGENT_TOKEN": "at_test_your_agent_token",
+        "PROXY_AGENT_ID": "agent_xxx"
+      }
+    }
+  }
+}
+```
+
+Agent tokens are scoped to a single agent and can only access agent tools (not admin tools).
+
+## Test the Connection
+
+Once connected, try these commands in your AI client:
+
+```
+"Check if user user_xxx can spend"
+→ Calls proxy_status
+
+"Create a $50 card for buying office supplies"
+→ Calls proxy_card with action: create
+
+"What transactions did card_xxx have?"
+→ Calls proxy_transactions
+```
+
+## Verify Tools Are Available
+
+Ask your AI:
+
+```
+"What Proxy tools do you have access to?"
+```
+
+You should see a list of available tools based on your credentials.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Tools Reference" icon="wrench" href="/mcp/tools">
+    Learn each tool's parameters
+  </Card>
+  <Card title="Examples" icon="code" href="/mcp/examples">
+    Common workflows
+  </Card>
+</CardGroup>

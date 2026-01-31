@@ -1,0 +1,199 @@
+---
+title: "Disputes"
+description: "Dispute (chargeback) management for transactions"
+---
+
+# Disputes
+
+Disputes allow you to challenge unauthorized or fraudulent transactions. When you create a dispute, a chargeback process is initiated with the card network.
+
+## Dispute Lifecycle
+
+```
+pending → inReview → won       (chargeback successful)
+pending → inReview → lost      (chargeback denied)
+pending → canceled             (dispute withdrawn)
+```
+
+## Create a Dispute
+
+Initiate a dispute for a transaction:
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/transactions/txn_abc123/disputes \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reason": "unauthorized",
+    "description": "I did not authorize this transaction"
+  }'
+```
+
+```json
+{
+  "object": "dispute",
+  "id": "dsp_xyz789",
+  "transactionId": "txn_abc123",
+  "cardId": "card_def",
+  "userId": "user_123",
+  "amount": 5000,
+  "reason": "unauthorized",
+  "description": "I did not authorize this transaction",
+  "status": "pending",
+  "createdAt": 1703520000000
+}
+```
+
+### Dispute Reasons
+
+| Reason | Description |
+|--------|-------------|
+| `unauthorized` | Transaction not authorized by cardholder |
+| `duplicate` | Charged multiple times |
+| `product_not_received` | Goods/services not delivered |
+| `product_unacceptable` | Product defective or not as described |
+| `credit_not_processed` | Refund not received |
+| `other` | Other reason (provide description) |
+
+## List Disputes
+
+```bash
+curl https://api.useproxy.ai/v1/disputes \
+  -H "Api-Key: $API_KEY"
+```
+
+### Filter Options
+
+| Parameter | Description |
+|-----------|-------------|
+| `userId` | Filter by user |
+| `transactionId` | Filter by transaction |
+| `status` | Filter by status |
+| `limit` | Results per page |
+| `cursor` | Pagination cursor |
+
+```bash
+curl "https://api.useproxy.ai/v1/disputes?status=pending" \
+  -H "Api-Key: $API_KEY"
+```
+
+## Get Dispute
+
+```bash
+curl https://api.useproxy.ai/v1/disputes/dsp_xyz789 \
+  -H "Api-Key: $API_KEY"
+```
+
+```json
+{
+  "object": "dispute",
+  "id": "dsp_xyz789",
+  "transactionId": "txn_abc123",
+  "cardId": "card_def",
+  "userId": "user_123",
+  "amount": 5000,
+  "reason": "unauthorized",
+  "description": "I did not authorize this transaction",
+  "status": "inReview",
+  "evidence": {
+    "hasFile": true,
+    "textEvidence": "Additional context..."
+  },
+  "createdAt": 1703520000000,
+  "updatedAt": 1703523600000
+}
+```
+
+## Update Dispute
+
+Add text evidence or cancel a dispute:
+
+```bash
+curl -X PATCH https://api.useproxy.ai/v1/disputes/dsp_xyz789 \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "textEvidence": "I was traveling on this date and could not have made this purchase. See attached boarding pass."
+  }'
+```
+
+### Cancel a Dispute
+
+```bash
+curl -X PATCH https://api.useproxy.ai/v1/disputes/dsp_xyz789 \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "canceled"
+  }'
+```
+
+<Warning>
+  Only `pending` or `inReview` disputes can be canceled. Resolved disputes cannot be changed.
+</Warning>
+
+## Evidence
+
+### Upload File Evidence
+
+```bash
+curl -X PUT https://api.useproxy.ai/v1/disputes/dsp_xyz789/evidence \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@evidence.pdf"
+```
+
+Supported formats: PDF, PNG, JPG (max 10MB)
+
+### Download Evidence
+
+```bash
+curl https://api.useproxy.ai/v1/disputes/dsp_xyz789/evidence \
+  -H "Api-Key: $API_KEY" \
+  -o evidence.pdf
+```
+
+## Dispute Status
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Dispute submitted, awaiting review |
+| `inReview` | Under investigation |
+| `won` | Chargeback successful, funds returned |
+| `lost` | Chargeback denied |
+| `canceled` | Dispute withdrawn |
+
+## Timeline
+
+Disputes typically take 30-90 days to resolve. The timeline depends on:
+- Card network (Visa, Mastercard)
+- Dispute reason
+- Evidence quality
+- Merchant response
+
+## Webhooks
+
+| Event | Description |
+|-------|-------------|
+| `dispute.created` | New dispute filed |
+| `dispute.resolved` | Dispute concluded (won, lost, or canceled) |
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Act quickly">
+    File disputes within 60 days of the transaction. Earlier disputes have higher success rates.
+  </Accordion>
+
+  <Accordion title="Provide clear evidence">
+    Include relevant documentation: receipts, correspondence, screenshots, travel records.
+  </Accordion>
+
+  <Accordion title="Be specific">
+    Provide detailed descriptions of why the transaction is being disputed.
+  </Accordion>
+
+  <Accordion title="Monitor status">
+    Set up webhooks to track dispute progress and respond promptly to requests for additional info.
+  </Accordion>
+</AccordionGroup>

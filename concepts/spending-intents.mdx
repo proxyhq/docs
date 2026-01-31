@@ -1,0 +1,370 @@
+---
+title: "Spending Intents"
+description: "Pre-transaction declarations for audit and matching"
+---
+
+# Spending Intents
+
+Intents are pre-transaction declarations that create an audit trail and enable automatic transaction matching. They answer the question: "What did the agent claim it was going to do?"
+
+<Info>
+**Terminology note:** In Proxy, "Intent" refers to a **spending intent** — a declaration of what your agent plans to purchase. This is different from "intent" in LLM/NLU contexts (user intent classification) or Stripe's PaymentIntent (a payment lifecycle object).
+
+Think of it as: "Before spending, declare your intent."
+</Info>
+
+<Note>
+Intents work with **all card types**. When a transaction arrives, it's automatically matched against pending intents for that card.
+</Note>
+
+## Why Intents?
+
+| Without Intents | With Intents |
+|-----------------|--------------|
+| Transaction happens, no context | Agent declares intent before spending |
+| Hard to audit what agent intended | Clear audit trail of claimed purpose |
+| Can't detect unexpected purchases | Transactions matched against expectations |
+
+## Intent Lifecycle
+
+```
+pending_approval → pending → matched    (approved, then transaction arrived within tolerance)
+pending_approval → pending → mismatched (approved, then transaction outside tolerance)
+pending_approval → pending → expired    (approved, but TTL reached)
+pending_approval → rejected             (human rejected the intent)
+pending          → matched              (no approval needed, transaction within tolerance)
+pending          → mismatched           (no approval needed, transaction outside tolerance)
+pending          → expired              (TTL reached, no transaction)
+pending          → canceled             (manually canceled)
+```
+
+| Status | Description |
+|--------|-------------|
+| `pending_approval` | Awaiting human approval before agent can proceed |
+| `pending` | Approved and awaiting transaction |
+| `rejected` | Human rejected the intent |
+| `matched` | Transaction arrived within tolerance |
+| `mismatched` | Transaction arrived outside tolerance |
+| `expired` | TTL reached without transaction |
+| `canceled` | Manually canceled |
+
+## Create an Intent
+
+Before making a purchase, declare what you're about to do:
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/cards/$CARD_ID/intents \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "intentId": "order-123",
+    "summary": "Order lunch on DoorDash",
+    "expectedAmount": 2500,
+    "expectedMerchant": "DoorDash",
+    "tolerance": 500,
+    "ttlMinutes": 30
+  }'
+```
+
+```json
+{
+  "id": "int_abc123",
+  "cardId": "card_xyz789",
+  "intentId": "order-123",
+  "summary": "Order lunch on DoorDash",
+  "expectedAmount": 2500,
+  "expectedMerchant": "DoorDash",
+  "tolerance": 500,
+  "status": "pending",
+  "expiresAt": 1703521800000,
+  "createdAt": 1703520000000
+}
+```
+
+## Intent Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `intentId` | Yes | Your unique ID (for idempotency) |
+| `summary` | Yes | Human-readable description |
+| `expectedAmount` | No | Expected amount in cents |
+| `expectedMerchant` | No | Expected merchant name |
+| `tolerance` | No | Allowed variance in cents (e.g., 500 = ±$5) |
+| `ttlMinutes` | No | Time to live (default 30, max 1440) |
+| `metadata` | No | Additional context (taskId, orderId, etc.) |
+
+## Human-in-the-Loop Approval
+
+<Info>
+**When to use HITL Approval**
+
+Enable approval when you want human oversight before an AI agent can access card credentials. Common use cases:
+- High-value purchases above a threshold
+- Sensitive categories requiring human judgment
+- Compliance requirements for transaction authorization
+</Info>
+
+When `requireApproval` is enabled on a card, agent, or policy, intents start in `pending_approval` status instead of `pending`. The agent cannot access card credentials until a human approves the intent.
+
+### Flow
+
+```
+Agent declares intent → status: pending_approval → webhook sent
+                                    ↓
+Developer notified (your system) → calls /approve or /reject
+                                    ↓
+If approved → status: pending → agent can get card details
+If rejected → status: rejected → agent cannot proceed
+```
+
+### Enable Approval
+
+Set `requireApproval` at the card level:
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/agents/$AGENT_ID/cards \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "purpose": "Shopping assistant purchases",
+    "type": "multi",
+    "requireApproval": true,
+    "autoApproveBelow": 2500
+  }'
+```
+
+| Field | Description |
+|-------|-------------|
+| `requireApproval` | When `true`, intents require human approval |
+| `autoApproveBelow` | Auto-approve intents below this amount (cents) |
+
+### Inheritance Chain
+
+Approval settings follow this priority: **Card > Agent > Policy**
+
+```
+Policy sets requireApproval: true
+  ↓ (agent inherits)
+Agent can override with defaultRequireApproval: false
+  ↓ (card inherits from agent)
+Card can override with requireApproval: true
+```
+
+### Auto-Approval Threshold
+
+Use `autoApproveBelow` to skip human review for low-value intents:
+
+```json
+{
+  "requireApproval": true,
+  "autoApproveBelow": 5000
+}
+```
+
+With this config:
+- Intent for $30 → auto-approved (status: `pending`)
+- Intent for $75 → requires approval (status: `pending_approval`)
+
+### Approve an Intent
+
+When you receive an `intent.pending_approval` webhook, review and approve:
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/intents/$INTENT_ID/approve \
+  -H "Api-Key: $API_KEY"
+```
+
+```json
+{
+  "id": "int_abc123",
+  "status": "pending",
+  "approvedAt": 1703520600000,
+  "approvedBy": "lk_live_abc..."
+}
+```
+
+### Reject an Intent
+
+To reject with an optional reason:
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/intents/$INTENT_ID/reject \
+  -H "Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "Amount exceeds budget"}'
+```
+
+```json
+{
+  "id": "int_abc123",
+  "status": "rejected",
+  "rejectedAt": 1703520600000,
+  "rejectedBy": "lk_live_abc...",
+  "rejectionReason": "Amount exceeds budget"
+}
+```
+
+### Intent Response with Approval Status
+
+When an intent requires approval, the response includes the `pending_approval` status:
+
+```json
+{
+  "id": "int_abc123",
+  "cardId": "card_xyz789",
+  "intentId": "order-123",
+  "summary": "Order lunch on DoorDash",
+  "expectedAmount": 7500,
+  "status": "pending_approval",
+  "approvalRequired": true,
+  "expiresAt": 1703521800000,
+  "createdAt": 1703520000000
+}
+```
+
+### Agent Cannot Access Credentials Until Approved
+
+If an agent tries to get card details before approval:
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/cards/$CARD_ID/details \
+  -H "Authorization: Bearer $AGENT_TOKEN"
+```
+
+```json
+{
+  "error": {
+    "code": "intent_pending_approval",
+    "message": "Intent is awaiting approval. Wait for developer to approve before accessing credentials.",
+    "param": "int_abc123"
+  }
+}
+```
+
+## Automatic Matching
+
+When a transaction webhook arrives from the payment network, the system automatically:
+
+1. Finds any pending intent for the card
+2. Compares the transaction amount against `expectedAmount` (within `tolerance`)
+3. Compares the merchant name against `expectedMerchant` (case-insensitive partial match)
+4. Updates the intent status to `matched` or `mismatched`
+5. Emits a webhook event (`intent.matched` or `intent.mismatched`)
+
+## Transaction Matching
+
+When a transaction arrives, it's matched against pending intents:
+
+**Matched** - Transaction is within tolerance:
+```json
+{
+  "status": "matched",
+  "transactionId": "txn_def456",
+  "matchResult": {
+    "amountMatch": true,
+    "merchantMatch": true,
+    "actualAmount": 2450,
+    "actualMerchant": "DOORDASH"
+  }
+}
+```
+
+**Mismatched** - Transaction outside tolerance:
+```json
+{
+  "status": "mismatched",
+  "transactionId": "txn_def456",
+  "matchResult": {
+    "amountMatch": false,
+    "merchantMatch": true,
+    "actualAmount": 5000,
+    "actualMerchant": "DOORDASH"
+  }
+}
+```
+
+## List Intents
+
+```bash
+curl https://api.useproxy.ai/v1/cards/$CARD_ID/intents \
+  -H "Api-Key: $API_KEY"
+```
+
+```json
+{
+  "cardId": "card_xyz789",
+  "intents": [
+    {
+      "id": "int_abc123",
+      "intentId": "order-123",
+      "summary": "Order lunch on DoorDash",
+      "status": "matched",
+      "createdAt": 1703520000000,
+      "matchedAt": 1703520600000
+    },
+    {
+      "id": "int_def456",
+      "intentId": "order-124",
+      "summary": "Order dinner on DoorDash",
+      "status": "pending",
+      "expiresAt": 1703525400000,
+      "createdAt": 1703523600000
+    }
+  ]
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always create intent before spending">
+    The intent creates an audit trail. Even if you don't use matching, it documents what the agent claimed.
+  </Accordion>
+
+  <Accordion title="Use tolerance for variable amounts">
+    Tips, taxes, and fees can vary. Set tolerance to account for this:
+    ```json
+    {
+      "expectedAmount": 2500,
+      "tolerance": 500
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Include metadata for debugging">
+    Add context that helps with debugging:
+    ```json
+    {
+      "metadata": {
+        "taskId": "task_123",
+        "orderId": "order_456",
+        "cartItems": ["burger", "fries"]
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Set appropriate TTL">
+    Default is 30 minutes. Adjust based on your use case:
+    - Quick purchases: 10-15 minutes
+    - Complex checkouts: 30-60 minutes
+    - Async workflows: up to 1440 (24 hours)
+  </Accordion>
+</AccordionGroup>
+
+## Intent vs Credential Access
+
+Both create audit trails, but serve different purposes:
+
+| Intent | Credential Access |
+|--------|-------------------|
+| Declared before any action | Required to get PAN/CVV |
+| Optional (but recommended) | Required for card use |
+| Matches against transactions | Correlates with transactions |
+| Has tolerance for variance | No tolerance, just audit |
+
+For maximum accountability, use both:
+1. Create intent (declare what you're about to do)
+2. Request credentials (get PAN/CVV with attestation)
+3. Make purchase
+4. Transaction matched to intent
