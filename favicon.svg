@@ -1,13 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="4" fill="#1a1a1a"/>
-  <!-- Binary tree icon centered -->
-  <g transform="translate(4, 4)" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <path d="M14 6a2 2 0 1 0 -4 0a2 2 0 0 0 4 0" />
-    <path d="M7 14a2 2 0 1 0 -4 0a2 2 0 0 0 4 0" />
-    <path d="M21 14a2 2 0 1 0 -4 0a2 2 0 0 0 4 0" />
-    <path d="M14 18a2 2 0 1 0 -4 0a2 2 0 0 0 4 0" />
-    <path d="M12 8v8" />
-    <path d="M6.316 12.496l4.368 -4.992" />
-    <path d="M17.684 12.496l-4.366 -4.99" />
-  </g>
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="6" fill="#1a1a1a"/>
+  <text x="8" y="23" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" fill="#85d7ff">P</text>
 </svg>

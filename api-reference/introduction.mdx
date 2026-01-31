@@ -1,133 +1,110 @@
 ---
-title: "API Reference"
-description: "Complete reference for the Proxy API"
+title: "API Introduction"
+description: "Overview of the Proxy API"
 ---
+
+# API Reference
+
+The Proxy API enables you to programmatically manage customers, agents, cards, and transactions.
 
 ## Base URL
 
 ```
-https://api.useproxy.ai
+https://api.useproxy.ai/v1
 ```
-
-<Info>
-  The same base URL is used for both test and live. Your API key prefix determines the environment:
-  - `lk_test_` keys operate in sandbox mode (test data, no real charges)
-  - `lk_live_` keys operate in production mode (real transactions)
-</Info>
-
-<Info>
-  In sandbox mode, KYC, balances, and card credentials return mock data. Use `PROXY_TEST_FORCE_MOCK=true` to always use mocked responses.
-</Info>
-
-## Authentication
-
-All endpoints require authentication via the `Api-Key` header:
-
-```bash
-curl https://api.useproxy.ai/v1/agents \
-  -H "Api-Key: lk_test_your_api_key"
-```
-
-See [Authentication](/authentication) for more details.
 
 ## Request Format
 
-- All request bodies must be JSON-encoded
-- Include `Content-Type: application/json` header for POST/PATCH requests
+All requests use JSON bodies and require the `Content-Type: application/json` header.
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/customers \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{"type": "consumer", "email": "alice@example.com"}'
+```
 
 ## Response Format
 
-All responses are JSON-encoded with the following structure:
+Responses are JSON with consistent structure:
 
-**Success:**
 ```json
 {
-  "id": "agent_xyz789",
-  "name": "checkout-agent",
-  "status": "active"
+  "id": "cust_xxx",
+  "type": "consumer",
+  "email": "alice@example.com",
+  "createdAt": "2024-01-15T10:30:00Z"
 }
 ```
 
-**Error:**
+## Errors
+
+Errors return appropriate HTTP status codes with details:
+
 ```json
 {
   "error": {
-    "type": "authentication_error",
-    "code": "invalid_api_key",
-    "message": "Invalid API key"
-  },
-  "request_id": "req_abc123"
+    "code": "invalid_request",
+    "message": "Email is required"
+  }
 }
 ```
 
-**Paginated:**
-```json
-{
-  "data": [...],
-  "cursor": "abc123",
-  "hasMore": true
-}
-```
-
-## HTTP Status Codes
-
-| Code | Description |
-|------|-------------|
-| `200` | Success |
-| `201` | Created |
-| `400` | Bad Request - Invalid parameters |
-| `401` | Unauthorized - Invalid or missing API key |
-| `403` | Forbidden - Access denied |
-| `404` | Not Found - Resource doesn't exist |
-| `429` | Too Many Requests - Rate limited |
-| `500` | Server Error |
-
-## Pagination
-
-List endpoints support cursor-based pagination:
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `limit` | number | 20 | Items per page (max 100) |
-| `cursor` | string | - | Cursor from previous response |
-
-**Example:**
-
-```bash
-# First page
-curl "https://api.useproxy.ai/v1/agents?limit=10" \
-  -H "Api-Key: lk_test_your_api_key"
-
-# Next page
-curl "https://api.useproxy.ai/v1/agents?limit=10&cursor=abc123" \
-  -H "Api-Key: lk_test_your_api_key"
-```
+| Status | Description |
+|--------|-------------|
+| 400 | Bad request - invalid parameters |
+| 401 | Unauthorized - invalid API key |
+| 404 | Not found - resource doesn't exist |
+| 429 | Rate limited - too many requests |
+| 500 | Server error |
 
 ## Idempotency
 
-For POST requests, you can include an `Idempotency-Key` header to safely retry requests:
+For POST requests, include an `Idempotency-Key` header to ensure operations are only performed once:
 
 ```bash
-curl -X POST https://api.useproxy.ai/v1/agents/register \
-  -H "Api-Key: lk_test_your_api_key" \
-  -H "Idempotency-Key: unique-request-id-123" \
-  -H "Content-Type: application/json" \
-  -d '{"externalId": "my-agent", "userId": "user_abc", "name": "My Agent"}'
+curl -X POST https://api.useproxy.ai/v1/cards \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Idempotency-Key: unique-request-id" \
+  -d '{"customerId": "cust_xxx"}'
 ```
 
-## Resources
+Idempotency keys are cached for 24 hours.
+
+## Pagination
+
+List endpoints support pagination:
+
+```bash
+curl "https://api.useproxy.ai/v1/transactions?limit=10&cursor=cur_xxx" \
+  -H "Authorization: Bearer your_api_key"
+```
+
+Response includes pagination info:
+
+```json
+{
+  "data": [...],
+  "hasMore": true,
+  "nextCursor": "cur_yyy"
+}
+```
+
+## Rate Limits
+
+| Tier | Requests/minute |
+|------|-----------------|
+| Standard | 100 |
+| Pro | 1000 |
+| Enterprise | Custom |
+
+## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Users" icon="user" href="/api-reference/users/initiate-application">
-    Onboard users and manage balances
+  <Card title="Authentication" icon="key" href="/api-reference/authentication">
+    Set up API authentication
   </Card>
-  <Card title="Agents" icon="robot" href="/api-reference/agents/create-agent">
-    Create and manage autonomous agents
-  </Card>
-  <Card title="Cards" icon="credit-card" href="/api-reference/cards/get-card">
-    Issue and manage virtual cards
-  </Card>
-  <Card title="Webhooks" icon="webhook" href="/webhooks/introduction">
-    Real-time event notifications
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Make your first API call
   </Card>
 </CardGroup>

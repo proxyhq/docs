@@ -3,7 +3,7 @@
   "theme": "maple",
   "name": "Proxy",
   "colors": {
-    "primary": "#d4a574",
+    "primary": "#1a1a1a",
     "light": "#85d7ff",
     "dark": "#85d7ff"
   },
@@ -16,21 +16,7 @@
   "styling": {
     "eyebrows": "section",
     "codeblocks": "system",
-    "rounded": "default",
-    "icons": {
-      "library": "fontawesome",
-      "style": "regular"
-    }
-  },
-  "fonts": {
-    "heading": {
-      "family": "Inter",
-      "weight": 600
-    },
-    "body": {
-      "family": "Inter",
-      "weight": 400
-    }
+    "rounded": "default"
   },
   "appearance": {
     "default": "light"
@@ -48,47 +34,18 @@
             "icon": "rocket",
             "pages": [
               "introduction",
-              "system-overview",
-              "quickstart",
-              "payment-flow",
-              "authentication",
-              "errors"
+              "quickstart"
             ]
           },
           {
-            "group": "User Onboarding",
-            "icon": "user-plus",
-            "pages": [
-              "guides/user-onboarding",
-              "concepts/users",
-              "guides/deposits-withdrawals"
-            ]
-          },
-          {
-            "group": "Core Concepts",
+            "group": "Concepts",
             "icon": "book",
             "pages": [
+              "concepts/customers",
               "concepts/agents",
               "concepts/cards",
-              "concepts/spending-intents",
-              "concepts/security-attestation",
-              "concepts/transactions",
-              "concepts/disputes",
-              "concepts/policies",
-              "concepts/rake",
-              "concepts/risk-policies",
-              "concepts/auditors",
+              "concepts/intents",
               "concepts/webhooks"
-            ]
-          },
-          {
-            "group": "Guides",
-            "icon": "map",
-            "pages": [
-              "guides/create-your-first-card",
-              "guides/statements",
-              "best-practices",
-              "troubleshooting"
             ]
           }
         ]
@@ -100,230 +57,8 @@
             "group": "Overview",
             "icon": "code",
             "pages": [
-              "api-reference/introduction"
-            ]
-          },
-          {
-            "group": "User Verification (KYC)",
-            "icon": "user-check",
-            "openapi": "openapi.json",
-            "pages": [
-              "POST /v1/verification/user",
-              "GET /v1/verification/user/{userId}",
-              "PATCH /v1/verification/user/{userId}",
-              "PUT /v1/verification/user/{userId}/document",
-              "GET /v1/verification/user/{userId}/link"
-            ]
-          },
-          {
-            "group": "Business Verification (KYB)",
-            "icon": "building",
-            "openapi": "openapi.json",
-            "pages": [
-              "GET /v1/verification/business",
-              "PATCH /v1/verification/business",
-              "POST /v1/verification/business/documents/upload-url",
-              "GET /v1/verification/business/documents",
-              "POST /v1/verification/business/documents",
-              "DELETE /v1/verification/business/documents/{documentId}",
-              "GET /v1/verification/business/owners",
-              "POST /v1/verification/business/owners",
-              "PATCH /v1/verification/business/owners/{ownerId}",
-              "DELETE /v1/verification/business/owners/{ownerId}",
-              "POST /v1/verification/business/owners/{ownerId}/verify",
-              "POST /v1/verification/business/submit"
-            ]
-          },
-          {
-            "group": "Users",
-            "icon": "user",
-            "openapi": "openapi.json",
-            "pages": [
-              "POST /v1/users",
-              "GET /v1/users/{userId}",
-              "PATCH /v1/users/{userId}",
-              "DELETE /v1/users/{userId}"
-            ]
-          },
-          {
-            "group": "Policies",
-            "icon": "shield-halved",
-            "openapi": "openapi.json",
-            "pages": [
-              "POST /v1/policies",
-              "GET /v1/policies",
-              "GET /v1/policies/{policyId}",
-              "PATCH /v1/policies/{policyId}",
-              "DELETE /v1/policies/{policyId}"
-            ]
-          },
-          {
-            "group": "Agents",
-            "icon": "robot",
-            "openapi": "openapi.json",
-            "pages": [
-              "POST /v1/agents/register",
-              "GET /v1/agents",
-              "GET /v1/agents/{agentId}",
-              "PATCH /v1/agents/{agentId}",
-              "POST /v1/agents/{agentId}/deregister",
-              "GET /v1/agents/{agentId}/policy",
-              "GET /v1/agents/{agentId}/tokens",
-              "POST /v1/agents/{agentId}/tokens",
-              "DELETE /v1/agents/{agentId}/tokens/{tokenId}"
-            ]
-          },
-          {
-            "group": "Cards",
-            "icon": "credit-card",
-            "openapi": "openapi.json",
-            "pages": [
-              "POST /v1/agents/{agentId}/cards",
-              "GET /v1/agents/{agentId}/cards",
-              "GET /v1/users/{userId}/cards",
-              "GET /v1/cards/{cardId}",
-              "PATCH /v1/cards/{cardId}",
-              "GET /v1/cards/{cardId}/policy",
-              "POST /v1/cards/{cardId}/freeze",
-              "POST /v1/cards/{cardId}/unfreeze",
-              "POST /v1/cards/{cardId}/close",
-              "POST /v1/cards/{cardId}/details"
-            ]
-          },
-          {
-            "group": "Funds",
-            "icon": "wallet",
-            "openapi": "openapi.json",
-            "pages": [
-              "GET /v1/users/{userId}/funding",
-              "GET /v1/balances/{userId}",
-              "POST /v1/withdrawals",
-              "GET /v1/withdrawals",
-              "GET /v1/withdrawals/{withdrawalId}"
-            ]
-          },
-          {
-            "group": "Statements",
-            "icon": "file-invoice",
-            "openapi": "openapi.json",
-            "pages": [
-              "GET /v1/users/{userId}/statements",
-              "POST /v1/users/{userId}/statements/generate",
-              "GET /v1/users/{userId}/statements/{statementId}"
-            ]
-          },
-          {
-            "group": "Spending Intents",
-            "icon": "bullseye",
-            "openapi": "openapi.json",
-            "pages": [
-              "GET /v1/intents",
-              "GET /v1/intents/{intentId}",
-              "POST /v1/intents/{intentId}/approve",
-              "POST /v1/intents/{intentId}/reject",
-              "POST /v1/cards/{cardId}/intents",
-              "GET /v1/cards/{cardId}/intents"
-            ]
-          },
-          {
-            "group": "Transactions",
-            "icon": "receipt",
-            "openapi": "openapi.json",
-            "pages": [
-              "GET /v1/transactions",
-              "GET /v1/cards/{cardId}/transactions",
-              "GET /v1/transactions/{transactionId}",
-              "PATCH /v1/transactions/{transactionId}",
-              "GET /v1/transactions/{transactionId}/receipt",
-              "PUT /v1/transactions/{transactionId}/receipt",
-              "DELETE /v1/transactions/{transactionId}/receipt"
-            ]
-          },
-          {
-            "group": "Disputes",
-            "icon": "gavel",
-            "openapi": "openapi.json",
-            "pages": [
-              "GET /v1/disputes",
-              "GET /v1/disputes/{disputeId}",
-              "PATCH /v1/disputes/{disputeId}",
-              "GET /v1/disputes/{disputeId}/evidence",
-              "PUT /v1/disputes/{disputeId}/evidence",
-              "POST /v1/transactions/{transactionId}/disputes"
-            ]
-          },
-          {
-            "group": "Webhooks",
-            "icon": "bell",
-            "openapi": "openapi.json",
-            "pages": [
-              "GET /v1/webhooks",
-              "POST /v1/webhooks",
-              "GET /v1/webhooks/{webhookId}",
-              "PATCH /v1/webhooks/{webhookId}",
-              "DELETE /v1/webhooks/{webhookId}",
-              "GET /v1/webhooks/{webhookId}/secret",
-              "POST /v1/webhooks/{webhookId}/rotate-secret",
-              "POST /v1/webhooks/{webhookId}/test",
-              "GET /v1/webhook-event-types"
-            ]
-          },
-          {
-            "group": "Rake",
-            "icon": "percent",
-            "openapi": "openapi.json",
-            "pages": [
-              "GET /v1/rake",
-              "PATCH /v1/rake",
-              "GET /v1/rake/balance",
-              "GET /v1/rake/ledger"
-            ]
-          },
-          {
-            "group": "Risk Settings",
-            "icon": "shield-exclamation",
-            "openapi": "openapi.json",
-            "pages": [
-              "GET /v1/settings/risk",
-              "PATCH /v1/settings/risk",
-              "POST /v1/settings/risk/preset",
-              "GET /v1/settings/risk/presets",
-              "POST /v1/settings/risk/dry-run"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Webhooks",
-        "groups": [
-          {
-            "group": "Overview",
-            "icon": "webhook",
-            "pages": [
-              "webhooks/introduction",
-              "webhooks/setup",
-              "webhooks/events"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "MCP",
-        "groups": [
-          {
-            "group": "Overview",
-            "icon": "plug",
-            "pages": [
-              "mcp/introduction",
-              "mcp/quickstart"
-            ]
-          },
-          {
-            "group": "Reference",
-            "icon": "book",
-            "pages": [
-              "mcp/tools",
-              "mcp/examples"
+              "api-reference/introduction",
+              "api-reference/authentication"
             ]
           }
         ]
@@ -335,10 +70,6 @@
       {
         "label": "Website",
         "href": "https://useproxy.ai"
-      },
-      {
-        "label": "Pricing",
-        "href": "https://useproxy.ai/pricing"
       }
     ],
     "primary": {
@@ -350,26 +81,14 @@
   "footer": {
     "socials": {
       "x": "https://x.com/proxy_os",
-      "website": "https://useproxy.ai/"
+      "website": "https://useproxy.ai"
     }
   },
   "api": {
     "baseUrl": "https://api.useproxy.ai",
     "auth": {
       "method": "key",
-      "name": "Api-Key"
-    },
-    "playground": {
-      "mode": "simple"
+      "name": "Authorization"
     }
-  },
-  "openapi": "openapi.json",
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude"
-    ]
   }
 }

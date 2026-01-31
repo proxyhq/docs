@@ -1,0 +1,72 @@
+---
+title: "Customers"
+description: "The entity who owns funds and cards"
+---
+
+# Customers
+
+A **Customer** is the entity responsible for funding card spending. Customers can be individuals (consumers) or businesses (corporate).
+
+## Customer Types
+
+| Type | Description |
+|------|-------------|
+| `consumer` | Individual person |
+| `corporate` | Business entity |
+
+## Creating a Customer
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/customers \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "consumer",
+    "email": "alice@example.com",
+    "name": { "first": "Alice", "last": "Smith" }
+  }'
+```
+
+## Customer Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | string | `consumer` or `corporate` |
+| `email` | string | Customer email address |
+| `name` | object | First and last name (consumer) or business name (corporate) |
+| `status` | string | KYC verification status |
+
+## KYC Verification
+
+Customers must complete KYC (Know Your Customer) verification before issuing cards. The verification status can be:
+
+- `pending` - Awaiting verification
+- `verified` - Approved for card issuance
+- `rejected` - Verification failed
+
+## Default Policies
+
+Customers can set default spending policies that apply to all their agents and cards unless overridden.
+
+```json
+{
+  "policy": {
+    "requireIntent": true,
+    "autoApproveBelow": 10000,
+    "limits": {
+      "perDay": 50000
+    }
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Agents" icon="robot" href="/concepts/agents">
+    Create agents to spend on behalf of customers
+  </Card>
+  <Card title="Cards" icon="credit-card" href="/concepts/cards">
+    Issue virtual cards
+  </Card>
+</CardGroup>

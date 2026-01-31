@@ -1,267 +1,147 @@
 ---
-title: "Webhook Management"
-description: "Programmatically manage webhook endpoints"
+title: "Webhooks"
+description: "Real-time event notifications"
 ---
 
-# Webhook Management
+# Webhooks
 
-Manage your webhook endpoints programmatically via the API. Create, update, and delete endpoints without using the dashboard.
+Webhooks provide real-time notifications when events occur in your Proxy account. Configure endpoints to receive HTTP POST requests for events you care about.
 
-<Note>
-  For webhook event types and payload formats, see [Webhook Events](/webhooks/events).
-</Note>
+## Setting Up Webhooks
 
-## Create a Webhook
+### Create a Webhook Endpoint
 
 ```bash
 curl -X POST https://api.useproxy.ai/v1/webhooks \
-  -H "Api-Key: $API_KEY" \
+  -H "Authorization: Bearer your_api_key" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://your-server.com/webhooks/proxy",
-    "description": "Production webhook endpoint",
-    "events": ["transaction.completed", "card.created"]
+    "url": "https://your-app.com/webhooks/proxy",
+    "events": ["transaction.created", "intent.matched"],
+    "description": "Production webhook"
   }'
 ```
+
+### Webhook Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `url` | string | HTTPS endpoint to receive events |
+| `events` | array | List of event types to subscribe to |
+| `description` | string | Human-readable description |
+| `status` | string | `active` or `disabled` |
+
+## Event Types
+
+### Transaction Events
+
+| Event | Description |
+|-------|-------------|
+| `transaction.created` | New transaction recorded |
+| `transaction.settled` | Transaction settled |
+| `transaction.declined` | Transaction was declined |
+
+### Intent Events
+
+| Event | Description |
+|-------|-------------|
+| `intent.created` | New intent declared |
+| `intent.matched` | Intent matched to transaction |
+| `intent.mismatched` | Transaction didn't match intent |
+| `intent.expired` | Intent expired |
+| `intent.pending_approval` | Intent awaiting approval |
+
+### Card Events
+
+| Event | Description |
+|-------|-------------|
+| `card.created` | New card issued |
+| `card.frozen` | Card was frozen |
+| `card.closed` | Card was closed |
+
+## Webhook Payload
 
 ```json
 {
-  "object": "webhook",
-  "id": "whk_abc123",
-  "url": "https://your-server.com/webhooks/proxy",
-  "description": "Production webhook endpoint",
-  "events": ["transaction.completed", "card.created"],
-  "status": "enabled",
-  "secret": "whsec_abc123...",
-  "createdAt": 1703520000000
+  "id": "evt_xxx",
+  "type": "transaction.created",
+  "createdAt": "2024-01-15T10:30:00Z",
+  "data": {
+    "transactionId": "txn_xxx",
+    "cardId": "card_xxx",
+    "amount": 5000,
+    "merchant": "Amazon"
+  }
 }
 ```
 
-<Warning>
-  The `secret` is only returned when creating a webhook. Store it securely - you'll need it to verify webhook signatures.
-</Warning>
+## Signature Verification
 
-### Event Filtering
+All webhooks include a `Proxy-Signature` header for verification:
 
-| Field | Description |
-|-------|-------------|
-| `events` | Array of event types to receive |
-| (empty array) | Receive all events |
+```javascript
+const crypto = require('crypto');
 
-```bash
-# Receive only transaction events
-curl -X POST https://api.useproxy.ai/v1/webhooks \
-  -H "Api-Key: $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://your-server.com/webhooks",
-    "events": [
-      "transaction.authorized",
-      "transaction.completed",
-      "transaction.declined"
-    ]
-  }'
+function verifySignature(payload, signature, secret) {
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex');
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
+}
 ```
 
-## List Webhooks
+## Retry Policy
+
+Failed webhook deliveries are retried with exponential backoff:
+
+| Attempt | Delay |
+|---------|-------|
+| 1 | Immediate |
+| 2 | 5 minutes |
+| 3 | 30 minutes |
+| 4 | 2 hours |
+| 5 | 24 hours |
+
+After 5 failed attempts, the webhook is marked as failed and requires manual retry.
+
+## Managing Webhooks
+
+### List Webhooks
 
 ```bash
 curl https://api.useproxy.ai/v1/webhooks \
-  -H "Api-Key: $API_KEY"
+  -H "Authorization: Bearer your_api_key"
 ```
 
-```json
-{
-  "object": "list",
-  "data": [
-    {
-      "object": "webhook",
-      "id": "whk_abc123",
-      "url": "https://your-server.com/webhooks/proxy",
-      "description": "Production endpoint",
-      "events": ["transaction.completed"],
-      "status": "enabled",
-      "createdAt": 1703520000000
-    }
-  ],
-  "hasMore": false
-}
-```
-
-## Get Webhook
+### Update a Webhook
 
 ```bash
-curl https://api.useproxy.ai/v1/webhooks/whk_abc123 \
-  -H "Api-Key: $API_KEY"
-```
-
-## Update Webhook
-
-```bash
-curl -X PATCH https://api.useproxy.ai/v1/webhooks/whk_abc123 \
-  -H "Api-Key: $API_KEY" \
+curl -X PATCH https://api.useproxy.ai/v1/webhooks/wh_xxx \
+  -H "Authorization: Bearer your_api_key" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://new-server.com/webhooks",
-    "events": ["transaction.completed", "transaction.declined"],
-    "status": "enabled"
+    "events": ["transaction.created", "transaction.declined"]
   }'
 ```
 
-### Disable/Enable
+### Delete a Webhook
 
 ```bash
-# Disable
-curl -X PATCH https://api.useproxy.ai/v1/webhooks/whk_abc123 \
-  -H "Api-Key: $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"status": "disabled"}'
-
-# Enable
-curl -X PATCH https://api.useproxy.ai/v1/webhooks/whk_abc123 \
-  -H "Api-Key: $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"status": "enabled"}'
+curl -X DELETE https://api.useproxy.ai/v1/webhooks/wh_xxx \
+  -H "Authorization: Bearer your_api_key"
 ```
 
-## Delete Webhook
+## Next Steps
 
-```bash
-curl -X DELETE https://api.useproxy.ai/v1/webhooks/whk_abc123 \
-  -H "Api-Key: $API_KEY"
-```
-
-```json
-{
-  "object": "deleted",
-  "id": "whk_abc123",
-  "deleted": true
-}
-```
-
-## Signing Secret
-
-### Get Secret
-
-Retrieve the signing secret for an existing webhook:
-
-```bash
-curl https://api.useproxy.ai/v1/webhooks/whk_abc123/secret \
-  -H "Api-Key: $API_KEY"
-```
-
-```json
-{
-  "object": "webhook_secret",
-  "secret": "whsec_abc123..."
-}
-```
-
-### Rotate Secret
-
-Generate a new signing secret:
-
-```bash
-curl -X POST https://api.useproxy.ai/v1/webhooks/whk_abc123/rotate-secret \
-  -H "Api-Key: $API_KEY"
-```
-
-```json
-{
-  "object": "webhook_secret",
-  "secret": "whsec_new456..."
-}
-```
-
-<Warning>
-  After rotating, you have 24 hours to update your server. Both old and new secrets work during this grace period.
-</Warning>
-
-## Test Webhook
-
-Send a test event to verify your endpoint is working:
-
-```bash
-curl -X POST https://api.useproxy.ai/v1/webhooks/whk_abc123/test \
-  -H "Api-Key: $API_KEY"
-```
-
-```json
-{
-  "object": "test_sent",
-  "success": true,
-  "message": "Test webhook sent",
-  "payload": {
-    "id": "test_1703520000",
-    "type": "test.webhook",
-    "createdAt": 1703520000000,
-    "data": {
-      "message": "This is a test webhook event from Proxy API"
-    }
-  }
-}
-```
-
-## List Event Types
-
-Get all available webhook event types:
-
-```bash
-curl https://api.useproxy.ai/v1/webhook-event-types \
-  -H "Api-Key: $API_KEY"
-```
-
-```json
-{
-  "object": "list",
-  "data": [
-    {"name": "transaction.authorized", "category": "transaction"},
-    {"name": "transaction.completed", "category": "transaction"},
-    {"name": "card.created", "category": "card"},
-    {"name": "card.frozen", "category": "card"},
-    {"name": "agent.created", "category": "agent"}
-  ]
-}
-```
-
-## Verifying Webhooks
-
-All webhook payloads are signed using Svix. Verify the signature using the svix library:
-
-**Headers:**
-- `svix-id` - Unique message ID
-- `svix-timestamp` - Unix timestamp
-- `svix-signature` - HMAC signature
-
-```javascript
-const { Webhook } = require('svix');
-
-const webhook = new Webhook(process.env.WEBHOOK_SECRET);
-
-// In your webhook handler
-app.post('/webhooks', (req, res) => {
-  try {
-    const payload = webhook.verify(req.body, {
-      'svix-id': req.headers['svix-id'],
-      'svix-timestamp': req.headers['svix-timestamp'],
-      'svix-signature': req.headers['svix-signature']
-    });
-
-    // Process the webhook
-    console.log(`Received ${payload.type}:`, payload.data);
-
-    res.status(200).send('OK');
-  } catch (err) {
-    console.error('Webhook verification failed:', err);
-    res.status(400).send('Invalid signature');
-  }
-});
-```
-
-<Info>
-  Install the svix library: `npm install svix` or `pip install svix`
-</Info>
-
-<Card title="Webhook Events" icon="bell" href="/webhooks/events">
-  See all event types and payload formats
-</Card>
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Full API documentation
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get started quickly
+  </Card>
+</CardGroup>

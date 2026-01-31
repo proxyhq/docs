@@ -1,0 +1,77 @@
+---
+title: "Authentication"
+description: "Authenticate with the Proxy API"
+---
+
+# Authentication
+
+All API requests require authentication using a Bearer token.
+
+## API Keys
+
+Get your API key from the [Proxy Dashboard](https://dashboard.useproxy.ai).
+
+<Warning>
+Keep your API keys secure. Never expose them in client-side code or public repositories.
+</Warning>
+
+## Using Your API Key
+
+Include your API key in the `Authorization` header:
+
+```bash
+curl https://api.useproxy.ai/v1/customers \
+  -H "Authorization: Bearer sk_live_xxxxx"
+```
+
+## Test vs Live Keys
+
+| Key Prefix | Environment |
+|------------|-------------|
+| `sk_test_` | Test mode - no real transactions |
+| `sk_live_` | Live mode - real card transactions |
+
+## Test Mode
+
+Use test mode keys to develop and test your integration without processing real transactions.
+
+```bash
+# Test mode request
+curl https://api.useproxy.ai/v1/customers \
+  -H "Authorization: Bearer sk_test_xxxxx"
+```
+
+Test mode:
+- Creates test customers and cards
+- Simulates transactions
+- No real money movement
+
+## Key Security
+
+Best practices for API key security:
+
+1. **Never commit keys** - Use environment variables
+2. **Rotate regularly** - Generate new keys periodically
+3. **Limit scope** - Use separate keys for different environments
+4. **Monitor usage** - Check API logs for unexpected activity
+
+## Revoking Keys
+
+If a key is compromised, revoke it immediately from the dashboard:
+
+1. Go to Settings → API Keys
+2. Click the key to revoke
+3. Confirm revocation
+
+Revoked keys immediately stop working.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Make your first API call
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Full API documentation
+  </Card>
+</CardGroup>

@@ -1,347 +1,90 @@
 ---
-title: "Quick Start"
-description: "Create your first virtual card in 5 minutes"
+title: "Quickstart"
+description: "Issue your first card in minutes"
 ---
-
-# Quick Start
-
-Create your first virtual card with Proxy.
 
 ## Prerequisites
 
-- A Proxy API account ([sign up here](https://dashboard.useproxy.ai))
-- An API key from your dashboard
+- A Proxy account ([sign up](https://dashboard.useproxy.ai))
+- Your API key from the dashboard
 
-## Step 1: Get Your API Key
+## Authentication
 
-<Steps>
-  <Step title="Log into Dashboard">
-    Go to [dashboard.useproxy.ai](https://dashboard.useproxy.ai) and sign in.
-  </Step>
-  <Step title="Create API Key">
-    Navigate to **Settings > API Keys** and click **Create Key**.
-  </Step>
-  <Step title="Copy Your Key">
-    Copy your API key. It starts with `lk_test_` for sandbox or `lk_live_` for production.
-  </Step>
-</Steps>
-
-<Warning>
-  Keep your API key secure. Never expose it in client-side code or commit it to version control.
-</Warning>
-
-## Step 2: Create a User
-
-Users fund card spending. Start by creating a user:
-
-<CodeGroup>
-```bash cURL
-curl -X POST https://api.useproxy.ai/v1/users \
-  -H "Api-Key: lk_test_your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "firstName": "John",
-    "lastName": "Doe",
-    "email": "john@example.com"
-  }'
-```
-
-```javascript Node.js
-const response = await fetch('https://api.useproxy.ai/v1/users', {
-  method: 'POST',
-  headers: {
-    'Api-Key': 'lk_test_your_api_key',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john@example.com'
-  })
-});
-const user = await response.json();
-```
-
-```python Python
-import requests
-
-response = requests.post(
-    'https://api.useproxy.ai/v1/users',
-    headers={
-        'Api-Key': 'lk_test_your_api_key',
-        'Content-Type': 'application/json'
-    },
-    json={
-        'firstName': 'John',
-        'lastName': 'Doe',
-        'email': 'john@example.com'
-    }
-)
-user = response.json()
-```
-</CodeGroup>
-
-<ResponseExample>
-```json Response
-{
-  "object": "user",
-  "id": "user_abc123",
-  "firstName": "John",
-  "lastName": "Doe",
-  "email": "john@example.com",
-  "applicationStatus": "notStarted"
-}
-```
-</ResponseExample>
-
-## Step 3: Initiate KYC Verification
-
-The user must complete KYC before using cards:
-
-<CodeGroup>
-```bash cURL
-curl -X POST https://api.useproxy.ai/v1/verification/user \
-  -H "Api-Key: lk_test_your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "userId": "user_abc123"
-  }'
-```
-</CodeGroup>
-
-<ResponseExample>
-```json Response
-{
-  "object": "verification",
-  "userId": "user_abc123",
-  "applicationStatus": "pending",
-  "verificationUrl": "https://kyc.useproxy.ai/verify/xyz789"
-}
-```
-</ResponseExample>
-
-The user must complete KYC via the `verificationUrl` before they can use cards.
-
-<Note>
-Sandbox behavior: when using `lk_test_` keys, Proxy can auto-approve KYC and return a sandbox verification URL. Set `PROXY_TEST_KYC_AUTO_APPROVE=false` to keep KYC pending, and `PROXY_TEST_KYC_URL_BASE` to change the link base.
-</Note>
-
-## Step 4: Register an Agent
-
-Once the user is approved, register an agent.
-
-<Note>
-**Why register an agent?** Agents are the identity layer between users (who fund) and cards (which spend). A user can have multiple agents - whether that's different AI assistants, sub-agents, or separate workflows:
-- Each agent gets its own spending limits and cards
-- Track spending per agent separately
-- Suspend one agent without affecting others
-- Issue scoped agent tokens instead of sharing your API key
-
-The `externalId` is your unique identifier for this agent (e.g., a UUID from your system). See [Agents concept](/concepts/agents) for more details.
-</Note>
-
-<CodeGroup>
-```bash cURL
-curl -X POST https://api.useproxy.ai/v1/agents/register \
-  -H "Api-Key: lk_test_your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "externalId": "d290f1ee-6c54-4b01-90e6-d701748f0851",
-    "userId": "user_abc123",
-    "name": "Checkout Agent",
-    "description": "Handles online purchases",
-    "spendingLimit": 50000,
-    "spendingLimitFrequency": "perMonth"
-  }'
-```
-
-```javascript Node.js
-const response = await fetch('https://api.useproxy.ai/v1/agents/register', {
-  method: 'POST',
-  headers: {
-    'Api-Key': 'lk_test_your_api_key',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    externalId: 'd290f1ee-6c54-4b01-90e6-d701748f0851', // Your agent's UUID
-    userId: 'user_abc123',
-    name: 'Checkout Agent',
-    description: 'Handles online purchases',
-    spendingLimit: 50000,
-    spendingLimitFrequency: 'perMonth'
-  })
-});
-const agent = await response.json();
-```
-</CodeGroup>
-
-<ResponseExample>
-```json Response
-{
-  "object": "agent",
-  "id": "agent_xyz789",
-  "externalId": "d290f1ee-6c54-4b01-90e6-d701748f0851",
-  "userId": "user_abc123",
-  "name": "Checkout Agent",
-  "status": "active",
-  "spendingLimit": 50000,
-  "spendingLimitFrequency": "perMonth",
-  "currentSpend": 0,
-  "created": true,
-  "token": "at_test_abc123..."
-}
-```
-</ResponseExample>
-
-<Tip>
-The `token` is only returned on first registration. Store it securely if you want your agent to authenticate directly.
-</Tip>
-
-## Step 5: Issue a Card
-
-Now create a virtual card for the agent:
-
-<CodeGroup>
-```bash cURL
-curl -X POST https://api.useproxy.ai/v1/agents/agent_xyz789/cards \
-  -H "Api-Key: lk_test_your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "purpose": "Purchase office supplies from Amazon",
-    "type": "single",
-    "maxAmount": 10000
-  }'
-```
-
-```javascript Node.js
-const response = await fetch('https://api.useproxy.ai/v1/agents/agent_xyz789/cards', {
-  method: 'POST',
-  headers: {
-    'Api-Key': 'lk_test_your_api_key',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    purpose: 'Purchase office supplies from Amazon',
-    type: 'single',
-    maxAmount: 10000
-  })
-});
-const card = await response.json();
-```
-</CodeGroup>
-
-<ResponseExample>
-```json Response
-{
-  "object": "card",
-  "id": "card_def456",
-  "agentId": "agent_xyz789",
-  "userId": "user_abc123",
-  "status": "active",
-  "last4": "4242",
-  "purpose": "Purchase office supplies from Amazon",
-  "type": "single",
-  "maxAmount": 10000
-}
-```
-</ResponseExample>
-
-## Step 6: Get Card Details
-
-To make a purchase, retrieve the card credentials:
-
-<CodeGroup>
-```bash cURL
-curl -X POST https://api.useproxy.ai/v1/cards/card_def456/details \
-  -H "Api-Key: lk_test_your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "summary": "Purchase office supplies from Amazon",
-    "expectedAmount": 5000,
-    "merchantText": "Amazon"
-  }'
-```
-</CodeGroup>
-
-<ResponseExample>
-```json Response
-{
-  "accessEventId": "evt_123",
-  "pan": "4111111111111111",
-  "cvv": "123",
-  "expirationMonth": "12",
-  "expirationYear": "2025",
-  "last4": "1111"
-}
-```
-</ResponseExample>
-
-<Note>
-  The `accessEventId` creates an audit trail linking this credential access to your attestation.
-</Note>
-
-## Step 7: Card Lifecycle
-
-After use, manage your card with action endpoints:
+All API requests require a Bearer token:
 
 ```bash
-# Freeze the card
-curl -X POST https://api.useproxy.ai/v1/cards/card_def456/freeze \
-  -H "Api-Key: lk_test_your_api_key"
-
-# Unfreeze the card
-curl -X POST https://api.useproxy.ai/v1/cards/card_def456/unfreeze \
-  -H "Api-Key: lk_test_your_api_key"
-
-# Close the card permanently
-curl -X POST https://api.useproxy.ai/v1/cards/card_def456/close \
-  -H "Api-Key: lk_test_your_api_key"
+Authorization: Bearer your_api_key
 ```
 
-## Troubleshooting
+## Step 1: Create a Customer
 
-<AccordionGroup>
-  <Accordion title="Error: 'Invalid API key'">
-    **Check:**
-    - Verify the key in your dashboard matches what you're using
-    - Ensure you're using `lk_test_` for sandbox, `lk_live_` for production
-    - Check for extra whitespace or newlines in the key
-  </Accordion>
+```bash
+curl -X POST https://api.useproxy.ai/v1/customers \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "consumer",
+    "email": "alice@example.com",
+    "name": { "first": "Alice", "last": "Smith" }
+  }'
+```
 
-  <Accordion title="User stuck in 'pending' verification">
-    **Cause:** KYC may require manual review or document re-upload.
+## Step 2: Register an Agent
 
-    **Solution:** Check verification status via API:
-    ```bash
-    curl https://api.useproxy.ai/v1/verification/user/$USER_ID \
-      -H "Api-Key: $API_KEY"
-    ```
-  </Accordion>
+```bash
+curl -X POST https://api.useproxy.ai/v1/agents \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": "cust_xxx",
+    "externalId": "my-agent-123",
+    "name": "Shopping Agent"
+  }'
+```
 
-  <Accordion title="Card creation fails with 'Insufficient balance'">
-    **Cause:** User's available balance is less than card's `maxAmount`.
+## Step 3: Issue a Card
 
-    **Solution:** Check balance and either reduce `maxAmount` or have user deposit more funds:
-    ```bash
-    curl https://api.useproxy.ai/v1/balances/$USER_ID \
-      -H "Api-Key: $API_KEY"
-    ```
-  </Accordion>
-</AccordionGroup>
+```bash
+curl -X POST https://api.useproxy.ai/v1/cards \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": "cust_xxx",
+    "agentId": "agent_xxx",
+    "usage": "multi"
+  }'
+```
+
+## Step 4: Declare Intent & Access Card
+
+```bash
+# Declare intent
+curl -X POST https://api.useproxy.ai/v1/cards/card_xxx/intents \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "purpose": "Purchase supplies from Amazon",
+    "expectedAmount": 5000,
+    "expectedMerchant": "Amazon"
+  }'
+
+# Get card details
+curl -X POST https://api.useproxy.ai/v1/cards/card_xxx/details \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "intentId": "int_xxx",
+    "purpose": "Purchase supplies from Amazon"
+  }'
+```
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="System Overview" icon="sitemap" href="/system-overview">
-    Understand the full architecture
+  <Card title="Concepts" icon="book" href="/concepts/customers">
+    Deep dive into core concepts
   </Card>
-  <Card title="Payment Flow" icon="route" href="/payment-flow">
-    Complete payment lifecycle walkthrough
-  </Card>
-  <Card title="Card Types" icon="credit-card" href="/concepts/cards">
-    Understand single vs multi cards
-  </Card>
-  <Card title="Webhooks" icon="webhook" href="/webhooks/introduction">
-    Set up real-time notifications
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Full API documentation
   </Card>
 </CardGroup>

@@ -5,119 +5,59 @@ description: "Virtual cards for AI agents"
 
 # Proxy
 
-AI agents are becoming increasingly autonomous—running for hours, making decisions unsupervised, transacting with multiple vendors. Handing them your credit card is like giving your card to someone and leaving. You'd be checking your phone nervously the whole time.
-
-Agents need their own spending power. Proxy issues virtual cards that agents own, funded by deposits you control, with hard spending limits that can't be exceeded. Your agent says "I have $500 to spend" — not "Can I borrow your card?"
+Proxy issues virtual cards for AI agents with policy-based spending controls.
 
 <CardGroup cols={2}>
-  <Card title="Quick Start" icon="rocket" href="/quickstart">
-    Get up and running in 5 minutes
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Issue your first card in minutes
   </Card>
   <Card title="API Reference" icon="code" href="/api-reference/introduction">
-    Explore the full API documentation
-  </Card>
-  <Card title="Webhooks" icon="bell" href="/webhooks/introduction">
-    Real-time event notifications
-  </Card>
-  <Card title="Dashboard" icon="gauge" href="https://dashboard.useproxy.ai">
-    Manage your account
+    Explore the API
   </Card>
 </CardGroup>
 
 ## How It Works
 
 <Steps>
-  <Step title="Create an Organization">
-    Sign up and create your organization to get API keys.
+  <Step title="Create a Customer">
+    Register the entity who will fund card spending.
   </Step>
-  <Step title="Onboard Users">
-    Add users who will fund card spending (KYC required).
+  <Step title="Register an Agent">
+    Create an autonomous actor that spends on behalf of the customer.
   </Step>
-  <Step title="Create Agents">
-    Register agent identities that will use the cards.
+  <Step title="Issue a Card">
+    Create a virtual card with spending policies and limits.
   </Step>
-  <Step title="Issue Cards">
-    Issue virtual cards for your agents with spending controls.
+  <Step title="Declare Intent">
+    Before spending, the agent declares what it plans to purchase.
+  </Step>
+  <Step title="Access Credentials">
+    The agent retrieves card credentials and completes the purchase.
   </Step>
 </Steps>
 
-## Key Concepts
-
-<Note>
-**Who is a "User"?** A User is the person or entity whose money funds the cards. This could be:
-- **Your company** — if you're building AI agents that spend company funds
-- **Your customers** — if you're building a platform where end-users fund their own AI agents
-
-Every User must complete KYC verification before depositing funds.
-</Note>
+## Core Concepts
 
 | Concept | Description |
 |---------|-------------|
-| **Organization** | Your company account that holds API keys |
-| **User** | A KYC-verified individual or entity who deposits funds |
-| **Agent** | A logical identity (your AI agent or assistant) that spends |
-| **Card** | A virtual card issued to an agent |
-
-## Architecture
-
-```
-Organization (your company, holds API keys)
-    └── User (funding source, completes KYC, deposits funds)
-          └── Agent (your AI agent or workflow)
-                └── Cards (single-use or multi-use)
-```
-
-**Common setups:**
-
-| Scenario | Users | Agents |
-|----------|-------|--------|
-| Your company funds all AI spending | 1 User (your company) | Multiple agents per workflow |
-| Your customers fund their own AI | 1 User per customer | Agents act on each customer's behalf |
-
-- **Users** are the funding source — they complete KYC and deposit funds
-- **Agents** are the spenders — your AI code that uses the cards
-- One User can have multiple Agents
-- One Agent can have multiple Cards
-
-## Funding Speed
-
-<Info>
-**How fast can I fund?** Crypto deposits (USDC/USDT) credit within minutes. ACH and wire transfers also supported.
-</Info>
-
-| Stage | Timing |
-|-------|--------|
-| Deposit confirmed on-chain | ~30 seconds (L2s) |
-| Balance credited | 2-5 minutes |
-| Ready to spend | Immediately |
-
-## Features
-
-<AccordionGroup>
-  <Accordion title="Virtual Card Issuing">
-    Issue virtual cards instantly for AI agents. Single-use cards auto-close after one transaction. Multi-use cards support velocity limits for recurring use.
-  </Accordion>
-  <Accordion title="Velocity Limits">
-    Multi-use cards support per-transaction, daily, and monthly spending limits. Combined with risk engine merchant drift detection, you get comprehensive safety controls.
-  </Accordion>
-  <Accordion title="Spending Controls">
-    Set per-transaction, daily, and monthly limits. Auto-freeze on limit exceeded. Time-based controls restrict when cards can be used.
-  </Accordion>
-  <Accordion title="Security & Attestation">
-    Before accessing card credentials, agents must attest what they intend to do. Transactions are automatically correlated with attestations for full audit trails. Detect anomalies when transactions don't match declared intent.
-  </Accordion>
-  <Accordion title="Real-time Webhooks">
-    Get notified of transactions, card events, KYC status changes, and more via webhooks.
-  </Accordion>
-</AccordionGroup>
+| **Customer** | Entity who owns funds and cards |
+| **Agent** | AI or automation that spends on behalf of a customer |
+| **Card** | Virtual spending instrument with policy controls |
+| **Intent** | Pre-transaction declaration of planned purchase |
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Quick Start Guide" icon="play" href="/quickstart">
-    Create your first card in minutes
+  <Card title="Customers" icon="user" href="/concepts/customers">
+    Learn about customers
   </Card>
-  <Card title="Authentication" icon="key" href="/authentication">
-    Learn how to authenticate API requests
+  <Card title="Agents" icon="robot" href="/concepts/agents">
+    Learn about agents
+  </Card>
+  <Card title="Cards" icon="credit-card" href="/concepts/cards">
+    Learn about cards
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/concepts/webhooks">
+    Real-time notifications
   </Card>
 </CardGroup>
