@@ -5,7 +5,7 @@ description: "Know Your Customer verification for card issuance"
 
 # KYC
 
-**KYC (Know Your Customer)** verification is required before customers can issue cards. Proxy uses Rain's KYC infrastructure to verify customer identity and comply with financial regulations.
+**KYC (Know Your Customer)** verification is required before customers can issue cards. Proxy handles identity verification through Rain's KYC infrastructure to comply with financial regulations.
 
 ## Why KYC?
 
@@ -16,48 +16,133 @@ Card issuance is a regulated activity. Before a customer can:
 
 They must complete identity verification to prevent fraud and money laundering.
 
-## Customer Types
+## Creating a KYC Application
 
-<Tabs>
-  <Tab title="Consumer (Individual)">
-    Individual customers complete KYC by providing:
-    - Full legal name
-    - Date of birth
-    - Social Security Number (SSN)
-    - Address
-    - Government ID verification
+Submit a KYC application with the customer's identity information:
 
-    ```bash
-    curl -X POST https://api.useproxy.ai/v1/kyc/applications \
-      -H "Authorization: Bearer your_api_key" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "customerId": "cust_xxx",
-        "application": {
-          "firstName": "Alice",
-          "lastName": "Smith",
-          "dateOfBirth": "1990-01-15",
-          "ssn": "123-45-6789",
-          "address": {
-            "line1": "123 Main St",
-            "city": "San Francisco",
-            "state": "CA",
-            "postalCode": "94102",
-            "country": "US"
-          }
-        }
-      }'
-    ```
-  </Tab>
-  <Tab title="Corporate (Business)">
-    Business customers require additional documentation:
-    - Business legal name and EIN
-    - Business address
-    - Formation documents
-    - Beneficial owner information (KYB)
-    - UBO identity verification
-  </Tab>
-</Tabs>
+```bash
+curl -X POST https://api.useproxy.ai/v1/kyc/applications \
+  -H "Authorization: Bearer sk_live_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": "cus_xxx",
+    "application": {
+      "firstName": "John",
+      "lastName": "Doe",
+      "birthDate": "1990-01-15",
+      "nationalId": "123456789",
+      "countryOfIssue": "US",
+      "email": "john@example.com",
+      "address": {
+        "line1": "123 Main St",
+        "city": "San Francisco",
+        "state": "CA",
+        "postalCode": "94102",
+        "country": "US"
+      },
+      "ipAddress": "1.2.3.4",
+      "occupation": "SOFTWARE_ENGINEER",
+      "annualSalary": "100000_149999",
+      "accountPurpose": "PERSONAL_SPENDING",
+      "expectedMonthlyVolume": "1000_4999",
+      "isTermsOfServiceAccepted": true
+    }
+  }'
+```
+
+### Required Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `firstName` | string | Customer's first name (max 50 chars) |
+| `lastName` | string | Customer's last name (max 50 chars) |
+| `birthDate` | string | Date of birth in `YYYY-MM-DD` format |
+| `nationalId` | string | National ID (9-digit SSN for US customers) |
+| `countryOfIssue` | string | 2-letter country code for national ID |
+| `email` | string | Customer's email address |
+| `address` | object | Customer's physical address |
+| `ipAddress` | string | Customer's IP address |
+| `occupation` | string | Customer's occupation code |
+| `annualSalary` | string | Annual salary range |
+| `accountPurpose` | string | Purpose of account |
+| `expectedMonthlyVolume` | string | Expected monthly spend range |
+| `isTermsOfServiceAccepted` | boolean | Must be `true` |
+
+### Address Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `line1` | string | Street address |
+| `line2` | string | Apartment, suite, etc. (optional) |
+| `city` | string | City |
+| `state` | string | State/province code |
+| `postalCode` | string | Postal/ZIP code |
+| `country` | string | 2-letter country code |
+
+### Optional Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `phoneCountryCode` | string | Phone country code (e.g., "1") |
+| `phoneNumber` | string | Phone number |
+| `walletAddress` | string | EVM wallet address |
+| `solanaAddress` | string | Solana wallet address |
+
+### Occupation Codes
+
+Common values:
+- `SOFTWARE_ENGINEER`
+- `PRODUCT_MANAGER`
+- `BUSINESS_OWNER`
+- `ACCOUNTANT`
+- `CONSULTANT`
+- `OTHER`
+
+### Salary Ranges
+
+- `0_24999`
+- `25000_49999`
+- `50000_99999`
+- `100000_149999`
+- `150000_249999`
+- `250000_499999`
+- `500000_PLUS`
+
+### Monthly Volume Ranges
+
+- `0_999`
+- `1000_4999`
+- `5000_9999`
+- `10000_24999`
+- `25000_49999`
+- `50000_PLUS`
+
+### Account Purpose
+
+- `PERSONAL_SPENDING`
+- `BUSINESS_EXPENSES`
+- `PAYROLL`
+- `VENDOR_PAYMENTS`
+
+## Response
+
+```json
+{
+  "id": "app_xxx",
+  "customerId": "cus_xxx",
+  "status": "pending",
+  "reason": null,
+  "completionLink": "https://verify.example.com/complete/xyz789"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `id` | Application ID |
+| `customerId` | Your customer ID |
+| `status` | Current application status |
+| `reason` | Reason if status is not `approved` |
+| `completionLink` | URL for customer to complete additional verification |
 
 ## Application Statuses
 
@@ -66,7 +151,7 @@ They must complete identity verification to prevent fraud and money laundering.
 | `pending` | Application submitted, under review |
 | `approved` | Verified, customer can issue cards |
 | `needsInformation` | Additional info required |
-| `needsVerification` | Identity verification needed |
+| `needsVerification` | Identity verification needed - send customer to `completionLink` |
 | `manualReview` | Flagged for manual review |
 | `denied` | Application rejected |
 | `locked` | Account locked |
@@ -75,65 +160,50 @@ They must complete identity verification to prevent fraud and money laundering.
 
 <Steps>
   <Step title="Create Customer">
-    Create a customer record with basic info.
+    Create a customer record via `POST /v1/customers`
   </Step>
-  <Step title="Submit Application">
-    Submit KYC application with identity details.
-  </Step>
-  <Step title="Complete Verification">
-    Customer completes any required verification steps via the completion link.
+  <Step title="Submit KYC Application">
+    Submit application with all required identity fields
   </Step>
   <Step title="Check Status">
-    Poll application status or receive webhook notification.
+    Response indicates if additional verification is needed
+  </Step>
+  <Step title="Complete Verification">
+    If `needsVerification`, direct customer to `completionLink` to upload ID documents
+  </Step>
+  <Step title="Wait for Approval">
+    Poll status or receive webhook when application is approved
   </Step>
   <Step title="Issue Cards">
-    Once approved, customer can issue virtual cards.
+    Once `approved`, customer can issue virtual cards
   </Step>
 </Steps>
 
-## Checking Status
+## Checking Application Status
 
 ```bash
 curl https://api.useproxy.ai/v1/kyc/applications/app_xxx \
-  -H "Authorization: Bearer your_api_key"
+  -H "Authorization: Bearer sk_live_xxx"
 ```
 
 Response:
 ```json
 {
   "id": "app_xxx",
-  "customerId": "cust_xxx",
+  "customerId": "cus_xxx",
   "status": "needsVerification",
   "reason": "Identity verification required",
-  "completionLink": "https://verify.useproxy.ai/complete/xyz789"
+  "completionLink": "https://verify.example.com/complete/xyz789"
 }
 ```
 
 ## Completion Link
 
-When status is `needsInformation` or `needsVerification`, the response includes a `completionLink`. Direct your customer to this URL to complete the verification process.
+When status is `needsInformation` or `needsVerification`, the response includes a `completionLink`. Direct your customer to this URL to complete the verification process (e.g., upload government ID).
 
-<Note>
-Completion links are single-use and expire after 24 hours. Request a new application status to get a fresh link if needed.
-</Note>
-
-## KYB (Business Verification)
-
-For corporate customers, KYB (Know Your Business) adds:
-
-- **Business documents** - Formation docs, EIN letter
-- **Beneficial owners** - Individuals who own 25%+ of the business
-- **UBO verification** - Identity verification for each beneficial owner via Persona
-
-### Beneficial Owner Verification Status
-
-| Status | Description |
-|--------|-------------|
-| `not_started` | Verification not initiated |
-| `pending` | Verification in progress |
-| `approved` | Identity verified |
-| `denied` | Verification failed |
-| `needs_review` | Manual review required |
+<Warning>
+Completion links expire after 24 hours. Request a new application status to get a fresh link if needed.
+</Warning>
 
 ## Webhooks
 
@@ -141,15 +211,14 @@ Subscribe to KYC events for real-time updates:
 
 | Event | Description |
 |-------|-------------|
-| `kyc.application.approved` | Customer approved for card issuance |
-| `kyc.application.denied` | Application was rejected |
-| `kyc.application.needs_info` | Additional information required |
+| `kyc.approved` | Customer approved for card issuance |
+| `kyc.rejected` | Application was rejected |
 
 ## Next Steps
 
 <CardGroup cols={2}>
   <Card title="Customers" icon="user" href="/concepts/customers">
-    Learn about customer types
+    Learn about customer management
   </Card>
   <Card title="Cards" icon="credit-card" href="/concepts/cards">
     Issue cards after KYC approval

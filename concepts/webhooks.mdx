@@ -77,22 +77,107 @@ curl -X POST https://api.useproxy.ai/v1/webhooks \
 
 ## Signature Verification
 
-All webhooks include a `Proxy-Signature` header for verification:
+All webhooks include a `Proxy-Signature` header for verification. The header format is:
+
+```
+Proxy-Signature: t=1706745600,v1=5257a869e7ecebeda32affa62cdca3fa51cad7e77a0e56ff536d0ce8e108d8bd
+```
+
+Where:
+- `t` is the Unix timestamp (seconds) when the webhook was sent
+- `v1` is the HMAC-SHA256 signature
+
+The signature is computed over `{timestamp}.{json_payload}` using your webhook secret.
+
+### Node.js Example
 
 ```javascript
 const crypto = require('crypto');
 
-function verifySignature(payload, signature, secret) {
-  const expected = crypto
+function verifyWebhook(req, secret) {
+  const signature = req.headers['proxy-signature'];
+  const payload = JSON.stringify(req.body);
+
+  // Parse the signature header
+  const parts = signature.split(',');
+  const timestamp = parts[0].split('=')[1];
+  const receivedSig = parts[1].split('=')[1];
+
+  // Compute expected signature
+  const signedPayload = `${timestamp}.${payload}`;
+  const expectedSig = crypto
     .createHmac('sha256', secret)
-    .update(payload)
+    .update(signedPayload)
     .digest('hex');
+
+  // Compare signatures (use timing-safe comparison)
   return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expected)
+    Buffer.from(receivedSig),
+    Buffer.from(expectedSig)
   );
 }
+
+// Express.js handler example
+app.post('/webhooks/proxy', express.json(), (req, res) => {
+  const secret = 'whsec_your_webhook_secret';
+
+  if (!verifyWebhook(req, secret)) {
+    return res.status(401).send('Invalid signature');
+  }
+
+  // Process the webhook
+  const event = req.body;
+  console.log('Received event:', event.type);
+
+  res.status(200).send('OK');
+});
 ```
+
+### Convex Example
+
+```typescript
+import { httpAction } from "./_generated/server";
+
+export const webhookHandler = httpAction(async (ctx, request) => {
+  const signature = request.headers.get("proxy-signature");
+  const body = await request.text();
+  const secret = process.env.PROXY_WEBHOOK_SECRET!;
+
+  // Parse signature
+  const parts = signature?.split(',') || [];
+  const timestamp = parts[0]?.split('=')[1];
+  const receivedSig = parts[1]?.split('=')[1];
+
+  // Verify signature
+  const signedPayload = `${timestamp}.${body}`;
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(signedPayload));
+  const expectedSig = Array.from(new Uint8Array(sig))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  if (receivedSig !== expectedSig) {
+    return new Response("Invalid signature", { status: 401 });
+  }
+
+  // Process webhook
+  const event = JSON.parse(body);
+  console.log("Received:", event.type);
+
+  return new Response("OK", { status: 200 });
+});
+```
+
+<Warning>
+Always verify webhook signatures before processing events. This ensures the request came from Proxy and hasn't been tampered with.
+</Warning>
 
 ## Retry Policy
 
