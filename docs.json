@@ -27,6 +27,7 @@
   "contextual": {
     "options": ["copy", "view", "chatgpt", "claude"]
   },
+  "openapi": "openapi.json",
   "navigation": {
     "tabs": [
       {
@@ -69,16 +70,102 @@
             ]
           },
           {
-            "group": "Endpoints",
-            "icon": "brackets-curly",
+            "group": "Customers",
+            "icon": "user",
             "pages": [
-              "api-reference/endpoints/customers",
-              "api-reference/endpoints/agents",
-              "api-reference/endpoints/cards",
-              "api-reference/endpoints/intents",
-              "api-reference/endpoints/transactions",
-              "api-reference/endpoints/balances",
-              "api-reference/endpoints/webhooks"
+              "GET /customers",
+              "POST /customers",
+              "GET /customers/{customerId}",
+              "PATCH /customers/{customerId}",
+              "DELETE /customers/{customerId}",
+              "GET /customers/{customerId}/balances",
+              "GET /customers/{customerId}/funding-instructions"
+            ]
+          },
+          {
+            "group": "Agents",
+            "icon": "robot",
+            "pages": [
+              "GET /agents",
+              "POST /agents",
+              "GET /agents/{agentId}",
+              "PATCH /agents/{agentId}",
+              "DELETE /agents/{agentId}"
+            ]
+          },
+          {
+            "group": "Cards",
+            "icon": "credit-card",
+            "pages": [
+              "GET /cards",
+              "POST /cards",
+              "GET /cards/{cardId}",
+              "PATCH /cards/{cardId}",
+              "DELETE /cards/{cardId}",
+              "POST /cards/{cardId}/freeze",
+              "POST /cards/{cardId}/unfreeze",
+              "POST /cards/{cardId}/replace",
+              "POST /cards/{cardId}/details",
+              "GET /cards/{cardId}/policy",
+              "GET /cards/{cardId}/intents",
+              "POST /cards/{cardId}/intents",
+              "GET /cards/{cardId}/access-events",
+              "POST /cards/{cardId}/access"
+            ]
+          },
+          {
+            "group": "Intents",
+            "icon": "bullseye",
+            "pages": [
+              "GET /intents/{intentId}",
+              "DELETE /intents/{intentId}",
+              "POST /intents/{intentId}/approve",
+              "POST /intents/{intentId}/reject",
+              "GET /intents/{intentId}/findings"
+            ]
+          },
+          {
+            "group": "Transactions",
+            "icon": "money-bill-transfer",
+            "pages": [
+              "GET /transactions",
+              "GET /transactions/{transactionId}",
+              "PATCH /transactions/{transactionId}"
+            ]
+          },
+          {
+            "group": "Webhooks",
+            "icon": "webhook",
+            "pages": [
+              "GET /webhooks",
+              "POST /webhooks",
+              "GET /webhooks/{webhookId}",
+              "DELETE /webhooks/{webhookId}"
+            ]
+          },
+          {
+            "group": "KYC",
+            "icon": "id-card",
+            "pages": [
+              "GET /kyc/applications",
+              "POST /kyc/applications",
+              "GET /kyc/applications/{applicationId}",
+              "PATCH /kyc/applications/{applicationId}"
+            ]
+          },
+          {
+            "group": "Disputes",
+            "icon": "gavel",
+            "pages": [
+              "GET /disputes",
+              "GET /disputes/{disputeId}"
+            ]
+          },
+          {
+            "group": "Spend",
+            "icon": "calculator",
+            "pages": [
+              "POST /spend/evaluate"
             ]
           }
         ]
@@ -119,10 +206,9 @@
     }
   },
   "api": {
-    "baseUrl": "https://api.useproxy.ai",
+    "baseUrl": "https://api.useproxy.ai/v1",
     "auth": {
-      "method": "key",
-      "name": "Authorization"
+      "method": "bearer"
     },
     "playground": {
       "mode": "simple"
