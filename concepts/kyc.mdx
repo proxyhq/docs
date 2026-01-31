@@ -45,7 +45,9 @@ curl -X POST https://api.useproxy.ai/v1/kyc/applications \
       "annualSalary": "100000_149999",
       "accountPurpose": "PERSONAL_SPENDING",
       "expectedMonthlyVolume": "1000_4999",
-      "isTermsOfServiceAccepted": true
+      "isTermsOfServiceAccepted": true,
+      "phoneCountryCode": "1",
+      "phoneNumber": "5551234567"
     }
   }'
 ```
@@ -67,6 +69,8 @@ curl -X POST https://api.useproxy.ai/v1/kyc/applications \
 | `accountPurpose` | string | Purpose of account |
 | `expectedMonthlyVolume` | string | Expected monthly spend range |
 | `isTermsOfServiceAccepted` | boolean | Must be `true` |
+| `phoneCountryCode` | string | Phone country code (e.g., "1" for US) |
+| `phoneNumber` | string | Phone number without country code |
 
 ### Address Object
 
@@ -83,10 +87,12 @@ curl -X POST https://api.useproxy.ai/v1/kyc/applications \
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `phoneCountryCode` | string | Phone country code (e.g., "1") |
-| `phoneNumber` | string | Phone number |
-| `walletAddress` | string | EVM wallet address |
-| `solanaAddress` | string | Solana wallet address |
+| `walletAddress` | string | EVM wallet address (auto-created if not provided) |
+| `solanaAddress` | string | Solana wallet address (auto-created if not provided) |
+
+<Note>
+You don't need to provide a wallet address. Proxy automatically creates a secure server-managed wallet for each customer during KYC.
+</Note>
 
 ### Occupation Codes
 
