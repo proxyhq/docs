@@ -22,6 +22,10 @@
   ],
   "tags": [
     {
+      "name": "KYC",
+      "description": "Know Your Customer application management"
+    },
+    {
       "name": "Customers",
       "description": "Manage customers who own agents and cards"
     },
@@ -52,10 +56,6 @@
     {
       "name": "Webhooks",
       "description": "Configure outbound webhook subscriptions"
-    },
-    {
-      "name": "KYC",
-      "description": "Know Your Customer application management"
     },
     {
       "name": "Spend",
