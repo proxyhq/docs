@@ -1,0 +1,365 @@
+---
+title: "Disputes"
+description: "Contesting transactions and resolving chargebacks"
+---
+
+# Disputes
+
+A **Dispute** is a formal challenge to a transaction. Disputes occur when a cardholder believes a transaction was unauthorized, incorrect, or the goods/services were not delivered.
+
+## What Triggers a Dispute
+
+Disputes can be initiated for several reasons:
+
+| Reason | Description |
+|--------|-------------|
+| `unauthorized` | Cardholder did not authorize the transaction |
+| `fraud` | Suspected fraudulent activity |
+| `not_received` | Goods or services were not received |
+| `not_as_described` | Product/service differs from what was described |
+| `duplicate` | Charged multiple times for the same purchase |
+| `incorrect_amount` | Transaction amount is wrong |
+| `canceled` | Recurring charge after cancellation |
+| `credit_not_processed` | Refund not received |
+
+## Dispute Statuses
+
+| Status | Description |
+|--------|-------------|
+| `open` | Dispute filed, awaiting action |
+| `under_review` | Evidence submitted, being reviewed |
+| `resolved` | Dispute closed (won or lost) |
+| `won` | Dispute decided in cardholder's favor |
+| `lost` | Dispute decided in merchant's favor |
+
+## Dispute Lifecycle
+
+```
+Transaction Contested → open → Evidence Submitted → under_review → Resolved (won/lost)
+```
+
+<Tabs>
+  <Tab title="Phase 1: Filing">
+    Cardholder identifies an issue with a transaction and files a dispute.
+
+    - Dispute is created with status `open`
+    - Provisional credit may be issued
+    - Merchant is notified
+  </Tab>
+  <Tab title="Phase 2: Evidence">
+    Both parties can submit evidence to support their case.
+
+    - Transaction details and receipts
+    - Communication records
+    - Delivery confirmation
+    - Terms and conditions accepted
+  </Tab>
+  <Tab title="Phase 3: Review">
+    The card network reviews the evidence and makes a determination.
+
+    - Status changes to `under_review`
+    - Typical review period: 30-90 days
+    - Additional information may be requested
+  </Tab>
+  <Tab title="Phase 4: Resolution">
+    The dispute is resolved in favor of either the cardholder or merchant.
+
+    - `won`: Cardholder keeps the credit
+    - `lost`: Credit is reversed; funds returned to merchant
+  </Tab>
+</Tabs>
+
+## Filing a Dispute
+
+### Create a Dispute
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/disputes \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transactionId": "txn_abc123",
+    "reason": "not_received",
+    "description": "Order never arrived despite tracking showing delivered"
+  }'
+```
+
+Response:
+
+```json
+{
+  "id": "dsp_xyz789",
+  "transactionId": "txn_abc123",
+  "customerId": "cust_xxx",
+  "cardId": "card_yyy",
+  "status": "open",
+  "reason": "not_received",
+  "description": "Order never arrived despite tracking showing delivered",
+  "amount": 4500,
+  "currency": "USD",
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+
+### Dispute Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `transactionId` | string | Transaction being disputed |
+| `reason` | string | Dispute reason code |
+| `description` | string | Detailed explanation |
+
+## Viewing Disputes
+
+### List All Disputes
+
+```bash
+curl https://api.useproxy.ai/v1/disputes \
+  -H "Authorization: Bearer your_api_key"
+```
+
+Response:
+
+```json
+{
+  "disputes": [
+    {
+      "id": "dsp_xyz789",
+      "transactionId": "txn_abc123",
+      "status": "under_review",
+      "reason": "not_received",
+      "amount": 4500,
+      "currency": "USD",
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+
+### Filter by Status
+
+```bash
+curl "https://api.useproxy.ai/v1/disputes?status=open" \
+  -H "Authorization: Bearer your_api_key"
+```
+
+### Get Single Dispute
+
+```bash
+curl https://api.useproxy.ai/v1/disputes/dsp_xyz789 \
+  -H "Authorization: Bearer your_api_key"
+```
+
+Response:
+
+```json
+{
+  "id": "dsp_xyz789",
+  "transactionId": "txn_abc123",
+  "customerId": "cust_xxx",
+  "cardId": "card_yyy",
+  "status": "under_review",
+  "reason": "not_received",
+  "description": "Order never arrived despite tracking showing delivered",
+  "amount": 4500,
+  "currency": "USD",
+  "creditAmount": 4500,
+  "evidence": {
+    "submitted": true,
+    "submittedAt": "2024-01-16T14:00:00Z"
+  },
+  "createdAt": "2024-01-15T10:30:00Z",
+  "updatedAt": "2024-01-16T14:00:00Z"
+}
+```
+
+## Evidence Submission
+
+Submit evidence to support a dispute claim.
+
+### Submit Text Evidence
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/disputes/dsp_xyz789/evidence \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "textEvidence": "Order #12345 was placed on Jan 10. Tracking number 1Z999AA10123456784 shows delivered on Jan 12, but package was not at delivery location. Building security confirmed no package was received."
+  }'
+```
+
+### Submit Document Evidence
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/disputes/dsp_xyz789/evidence \
+  -H "Authorization: Bearer your_api_key" \
+  -F "document=@tracking_screenshot.png" \
+  -F "type=shipping_documentation"
+```
+
+### Evidence Types
+
+| Type | Description |
+|------|-------------|
+| `receipt` | Purchase receipt or invoice |
+| `shipping_documentation` | Tracking info, delivery confirmation |
+| `communication` | Emails, chat logs with merchant |
+| `cancellation_proof` | Cancellation confirmation |
+| `refund_policy` | Merchant refund/return policy |
+| `product_description` | Original product listing |
+| `other` | Any other relevant documentation |
+
+### View Submitted Evidence
+
+```bash
+curl https://api.useproxy.ai/v1/disputes/dsp_xyz789/evidence \
+  -H "Authorization: Bearer your_api_key"
+```
+
+Response:
+
+```json
+{
+  "textEvidence": "Order #12345 was placed on Jan 10...",
+  "documents": [
+    {
+      "id": "doc_001",
+      "type": "shipping_documentation",
+      "filename": "tracking_screenshot.png",
+      "uploadedAt": "2024-01-16T14:00:00Z"
+    }
+  ]
+}
+```
+
+## Dispute Resolution
+
+### Checking Status
+
+Disputes typically take 30-90 days to resolve. Check the status periodically:
+
+```bash
+curl https://api.useproxy.ai/v1/disputes/dsp_xyz789 \
+  -H "Authorization: Bearer your_api_key"
+```
+
+### Resolution Outcomes
+
+<CardGroup cols={2}>
+  <Card title="Won" icon="check">
+    The dispute was decided in your favor. The provisional credit becomes permanent.
+  </Card>
+  <Card title="Lost" icon="xmark">
+    The dispute was decided against you. The provisional credit is reversed.
+  </Card>
+</CardGroup>
+
+### Resolution Response
+
+```json
+{
+  "id": "dsp_xyz789",
+  "status": "won",
+  "reason": "not_received",
+  "amount": 4500,
+  "creditAmount": 4500,
+  "resolution": {
+    "outcome": "won",
+    "resolvedAt": "2024-02-15T10:00:00Z",
+    "notes": "Merchant unable to provide delivery confirmation"
+  }
+}
+```
+
+## Dispute Webhooks
+
+Subscribe to dispute events for real-time notifications:
+
+| Event | Description |
+|-------|-------------|
+| `dispute.created` | New dispute filed |
+| `dispute.updated` | Dispute status changed |
+| `dispute.resolved` | Dispute has been resolved |
+
+### Webhook Payload
+
+```json
+{
+  "id": "evt_abc123",
+  "type": "dispute.updated",
+  "createdAt": "2024-01-20T10:30:00Z",
+  "data": {
+    "disputeId": "dsp_xyz789",
+    "transactionId": "txn_abc123",
+    "previousStatus": "open",
+    "newStatus": "under_review",
+    "reason": "not_received"
+  }
+}
+```
+
+## Dispute Timeframes
+
+| Phase | Timeframe |
+|-------|-----------|
+| Filing deadline | 60-120 days from transaction |
+| Evidence submission | 7-20 days from dispute creation |
+| Network review | 30-90 days |
+| Second presentment | Up to 45 days (if applicable) |
+
+<Warning>
+Disputes must be filed within the network-specified timeframe (typically 60-120 days from the transaction date). Late disputes may be automatically rejected.
+</Warning>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Act Quickly" icon="clock">
+    File disputes promptly and submit evidence within the deadline.
+  </Card>
+  <Card title="Document Everything" icon="file-lines">
+    Save all receipts, communications, and delivery confirmations.
+  </Card>
+  <Card title="Be Specific" icon="bullseye">
+    Provide detailed descriptions with dates, amounts, and order numbers.
+  </Card>
+  <Card title="Include Evidence" icon="images">
+    Submit screenshots, tracking info, and any supporting documents.
+  </Card>
+</CardGroup>
+
+## Dispute Prevention
+
+Reduce disputes with proper intent matching and transaction monitoring:
+
+```json
+{
+  "policy": {
+    "requireIntent": true,
+    "requireAttestation": true,
+    "allowedMerchants": ["trusted-vendor.com"]
+  }
+}
+```
+
+- Use `requireIntent` to ensure all transactions have documented purposes
+- Enable `lockToFirstMerchant` for subscription cards
+- Set appropriate spending limits with `perAuth` and `perDay`
+- Monitor transactions via webhooks and flag suspicious activity
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Transactions" icon="receipt" href="/concepts/transactions">
+    View transaction history
+  </Card>
+  <Card title="Policies" icon="shield-halved" href="/concepts/policies">
+    Configure spending controls
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/concepts/webhooks">
+    Get real-time notifications
+  </Card>
+  <Card title="Cards" icon="credit-card" href="/concepts/cards">
+    Manage card settings
+  </Card>
+</CardGroup>

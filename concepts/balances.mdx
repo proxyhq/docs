@@ -1,0 +1,427 @@
+---
+title: "Balances"
+description: "Fund management and spending power"
+---
+
+# Balances
+
+**Balances** track the funds available for spending. Proxy maintains separate balances for available funds, held funds, and posted transactions.
+
+## Balance Types
+
+| Type | Description |
+|------|-------------|
+| `available` | Funds ready for new transactions |
+| `held` | Funds reserved by pending authorizations |
+| `posted` | Total settled transaction amount |
+
+### How Balances Work
+
+```
+Deposit $1,000
+├── Available: $1,000
+├── Held: $0
+└── Posted: $0
+
+Authorization for $100
+├── Available: $900  (decreased)
+├── Held: $100       (increased)
+└── Posted: $0
+
+Settlement of $100
+├── Available: $900
+├── Held: $0         (released)
+└── Posted: $100     (increased)
+```
+
+## Balance Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `available` | number | Funds available for spending (cents) |
+| `held` | number | Funds held by pending authorizations (cents) |
+| `posted` | number | Total settled transactions (cents) |
+| `creditLimit` | number | Maximum credit available (cents) |
+| `pendingCharges` | number | Pending authorization total (cents) |
+| `balanceDue` | number | Amount owed (cents) |
+| `spendingPower` | number | Total available to spend (cents) |
+| `currency` | string | Currency code (e.g., `USD`) |
+
+### Spending Power
+
+Spending power represents the total amount available for new transactions:
+
+```
+spendingPower = available + creditLimit - held - pendingCharges
+```
+
+## Balance Ownership
+
+Balances can be owned by either a customer or an agent:
+
+<Tabs>
+  <Tab title="Customer Balance">
+    The primary balance associated with a customer account. Funds for all cards flow through this balance.
+
+    ```json
+    {
+      "ownerType": "customer",
+      "ownerId": "cust_xxx",
+      "currency": "USD",
+      "available": 100000,
+      "held": 5000,
+      "posted": 45000
+    }
+    ```
+  </Tab>
+  <Tab title="Agent Balance">
+    Optional sub-balance allocated to a specific agent for budget control.
+
+    ```json
+    {
+      "ownerType": "agent",
+      "ownerId": "agent_xxx",
+      "currency": "USD",
+      "available": 25000,
+      "held": 2500,
+      "posted": 12500
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Viewing Balances
+
+### Get Customer Balance
+
+```bash
+curl https://api.useproxy.ai/v1/customers/cust_xxx/balance \
+  -H "Authorization: Bearer your_api_key"
+```
+
+Response:
+
+```json
+{
+  "customerId": "cust_xxx",
+  "currency": "USD",
+  "available": 100000,
+  "held": 5000,
+  "posted": 45000,
+  "spendingPower": 95000
+}
+```
+
+### Get Agent Balance
+
+```bash
+curl https://api.useproxy.ai/v1/agents/agent_xxx/balance \
+  -H "Authorization: Bearer your_api_key"
+```
+
+Response:
+
+```json
+{
+  "agentId": "agent_xxx",
+  "currency": "USD",
+  "available": 25000,
+  "held": 2500,
+  "posted": 12500,
+  "spendingPower": 22500
+}
+```
+
+## Deposits
+
+Add funds to a customer balance.
+
+### Deposit via API
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/customers/cust_xxx/deposits \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 50000,
+    "currency": "USD",
+    "reference": "deposit_20240115_001"
+  }'
+```
+
+Response:
+
+```json
+{
+  "depositId": "dep_abc123",
+  "customerId": "cust_xxx",
+  "amount": 50000,
+  "currency": "USD",
+  "status": "completed",
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+
+### Deposit Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `amount` | number | Amount to deposit (cents) |
+| `currency` | string | Currency code |
+| `reference` | string | Your reference ID for tracking |
+
+## Withdrawals
+
+Remove funds from a customer balance.
+
+### Request a Withdrawal
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/customers/cust_xxx/withdrawals \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 25000,
+    "currency": "USD",
+    "recipientAddress": "0x1234...",
+    "chain": "ethereum"
+  }'
+```
+
+Response:
+
+```json
+{
+  "withdrawalId": "wth_xyz789",
+  "customerId": "cust_xxx",
+  "amount": 25000,
+  "currency": "USD",
+  "status": "pending",
+  "recipientAddress": "0x1234...",
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+
+### Withdrawal Statuses
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Withdrawal initiated, awaiting processing |
+| `completed` | Funds transferred successfully |
+| `failed` | Withdrawal failed; funds returned to balance |
+
+### Check Withdrawal Status
+
+```bash
+curl https://api.useproxy.ai/v1/withdrawals/wth_xyz789 \
+  -H "Authorization: Bearer your_api_key"
+```
+
+## Balance Checks
+
+Before a transaction is authorized, Proxy checks if sufficient funds are available.
+
+### Authorization Flow
+
+```
+1. Transaction request received
+2. Check available balance >= transaction amount
+3. If sufficient:
+   ├── Decrease available by amount
+   ├── Increase held by amount
+   └── Approve authorization
+4. If insufficient:
+   └── Decline authorization (insufficient_funds)
+```
+
+### Insufficient Funds
+
+When a transaction is declined due to insufficient funds, the response includes:
+
+```json
+{
+  "error": {
+    "code": "insufficient_funds",
+    "message": "Insufficient available balance",
+    "details": {
+      "requested": 15000,
+      "available": 10000
+    }
+  }
+}
+```
+
+## Hold Management
+
+Holds are created when transactions are authorized and released when they settle.
+
+### Active Holds
+
+```bash
+curl https://api.useproxy.ai/v1/customers/cust_xxx/holds \
+  -H "Authorization: Bearer your_api_key"
+```
+
+Response:
+
+```json
+{
+  "holds": [
+    {
+      "holdId": "hold_abc123",
+      "transactionId": "txn_xyz789",
+      "amount": 5000,
+      "currency": "USD",
+      "merchant": "AMAZON.COM",
+      "createdAt": "2024-01-15T10:30:00Z",
+      "expiresAt": "2024-01-22T10:30:00Z"
+    }
+  ]
+}
+```
+
+### Hold Expiration
+
+Holds expire automatically if not settled within the standard timeframes:
+
+| Transaction Type | Hold Duration |
+|------------------|---------------|
+| Standard authorization | 7 days |
+| Refund authorization | 31 days |
+| Positive <= $1,000 | 14 days |
+| Positive > $1,000 | 31 days |
+
+When a hold expires, the funds are released back to the available balance.
+
+## Balance History
+
+View changes to a balance over time.
+
+```bash
+curl "https://api.useproxy.ai/v1/customers/cust_xxx/balance/history?startDate=2024-01-01&endDate=2024-01-31" \
+  -H "Authorization: Bearer your_api_key"
+```
+
+Response:
+
+```json
+{
+  "events": [
+    {
+      "id": "evt_001",
+      "type": "deposit",
+      "amount": 100000,
+      "balanceAfter": 100000,
+      "createdAt": "2024-01-01T10:00:00Z"
+    },
+    {
+      "id": "evt_002",
+      "type": "authorization",
+      "amount": -5000,
+      "balanceAfter": 95000,
+      "transactionId": "txn_abc123",
+      "createdAt": "2024-01-05T14:30:00Z"
+    },
+    {
+      "id": "evt_003",
+      "type": "settlement",
+      "amount": -5000,
+      "balanceAfter": 95000,
+      "transactionId": "txn_abc123",
+      "createdAt": "2024-01-07T09:00:00Z"
+    }
+  ]
+}
+```
+
+## Credit Limits
+
+Some accounts may have credit limits that extend spending power beyond the available balance.
+
+```json
+{
+  "available": 50000,
+  "held": 5000,
+  "creditLimit": 100000,
+  "spendingPower": 145000
+}
+```
+
+<Note>
+Credit limits are configured at the account level and may require additional approval.
+</Note>
+
+## Multi-Currency Support
+
+Balances are tracked per currency. A customer may have balances in multiple currencies.
+
+```bash
+curl https://api.useproxy.ai/v1/customers/cust_xxx/balances \
+  -H "Authorization: Bearer your_api_key"
+```
+
+Response:
+
+```json
+{
+  "balances": [
+    {
+      "currency": "USD",
+      "available": 100000,
+      "held": 5000,
+      "posted": 45000
+    },
+    {
+      "currency": "EUR",
+      "available": 25000,
+      "held": 0,
+      "posted": 10000
+    }
+  ]
+}
+```
+
+## Balance Webhooks
+
+Subscribe to balance events for real-time updates:
+
+| Event | Description |
+|-------|-------------|
+| `balance.updated` | Balance changed (deposit, withdrawal, authorization, settlement) |
+| `balance.low` | Balance dropped below configured threshold |
+
+### Webhook Payload
+
+```json
+{
+  "id": "evt_abc123",
+  "type": "balance.updated",
+  "createdAt": "2024-01-15T10:30:00Z",
+  "data": {
+    "customerId": "cust_xxx",
+    "currency": "USD",
+    "previousAvailable": 100000,
+    "newAvailable": 95000,
+    "changeAmount": -5000,
+    "changeType": "authorization",
+    "transactionId": "txn_xyz789"
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Transactions" icon="receipt" href="/concepts/transactions">
+    View transaction history
+  </Card>
+  <Card title="Cards" icon="credit-card" href="/concepts/cards">
+    Manage spending instruments
+  </Card>
+  <Card title="Customers" icon="user" href="/concepts/customers">
+    Customer account management
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/concepts/webhooks">
+    Real-time balance notifications
+  </Card>
+</CardGroup>

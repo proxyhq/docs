@@ -1,0 +1,482 @@
+---
+title: "Policies"
+description: "Spending controls and approval rules for cards and agents"
+---
+
+# Policies
+
+**Policies** define the rules governing how cards can be used. They control spending limits, merchant restrictions, approval workflows, and more.
+
+## Policy Cascade
+
+Policies are applied in a cascading hierarchy. Settings at lower levels override those at higher levels:
+
+```
+Customer Policy → Agent Policy → Card Policy
+```
+
+<Tabs>
+  <Tab title="Customer Level">
+    Default policies for all agents and cards owned by the customer.
+
+    ```json
+    {
+      "policy": {
+        "requireIntent": true,
+        "autoApproveBelow": 10000,
+        "limits": {
+          "perDay": 100000
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Agent Level">
+    Overrides customer defaults for a specific agent and its cards.
+
+    ```json
+    {
+      "policy": {
+        "requireApproval": true,
+        "limits": {
+          "perAuth": 5000,
+          "perDay": 25000
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Card Level">
+    Most specific; overrides both customer and agent policies.
+
+    ```json
+    {
+      "policy": {
+        "allowedMerchants": ["amazon.com"],
+        "lockToFirstMerchant": true,
+        "limits": {
+          "perAuth": 2500
+        }
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Cascade Example
+
+| Setting | Customer | Agent | Card | Effective |
+|---------|----------|-------|------|-----------|
+| `requireIntent` | `true` | - | - | `true` |
+| `perAuth` limit | `10000` | `5000` | `2500` | `2500` |
+| `perDay` limit | `100000` | `25000` | - | `25000` |
+| `lockToFirstMerchant` | - | - | `true` | `true` |
+
+## Intent Controls
+
+### requireIntent
+
+When `true`, agents must declare an intent before accessing card details. Transactions without a matching intent are flagged.
+
+```json
+{
+  "policy": {
+    "requireIntent": true
+  }
+}
+```
+
+**Use case**: Audit trail and compliance. Ensures every transaction has a documented purpose.
+
+### requireAttestation
+
+When `true`, agents must attest to their intent before each card access. Creates an access event record.
+
+```json
+{
+  "policy": {
+    "requireAttestation": true,
+    "attestationWindowMinutes": 15
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `requireAttestation` | boolean | Require attestation before card access |
+| `attestationWindowMinutes` | number | Minutes the attestation is valid |
+
+### requireApproval
+
+When `true`, intents require human approval before becoming active.
+
+```json
+{
+  "policy": {
+    "requireApproval": true,
+    "autoApproveBelow": 5000
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `requireApproval` | boolean | Intents need approval |
+| `autoApproveBelow` | number | Auto-approve intents under this amount (cents) |
+
+**Flow with approval required:**
+
+```
+Intent Created → pending_approval → [Human Approves] → pending → Transaction → matched
+```
+
+## Spending Limits
+
+Control maximum spend amounts at different time intervals.
+
+```json
+{
+  "policy": {
+    "limits": {
+      "perAuth": 5000,
+      "perDay": 50000,
+      "perMonth": 200000
+    }
+  }
+}
+```
+
+| Limit | Description |
+|-------|-------------|
+| `perAuth` | Maximum amount per single transaction (cents) |
+| `perDay` | Maximum total spend per 24-hour period (cents) |
+| `perMonth` | Maximum total spend per calendar month (cents) |
+
+### Limit Enforcement
+
+Limits are checked at authorization time. If a transaction would exceed any limit, it is declined.
+
+<CodeGroup>
+```bash Example: $50 limit per transaction
+curl -X POST https://api.useproxy.ai/v1/cards \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": "cust_xxx",
+    "agentId": "agent_xxx",
+    "policy": {
+      "limits": {
+        "perAuth": 5000
+      }
+    }
+  }'
+```
+
+```bash Example: $500/day limit
+curl -X POST https://api.useproxy.ai/v1/cards \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": "cust_xxx",
+    "agentId": "agent_xxx",
+    "policy": {
+      "limits": {
+        "perDay": 50000
+      }
+    }
+  }'
+```
+</CodeGroup>
+
+## MCC Restrictions
+
+Merchant Category Codes (MCCs) classify the type of business. Use MCC restrictions to control where cards can be used.
+
+### allowedMccs
+
+Whitelist specific merchant categories. Only transactions at merchants with these MCCs are allowed.
+
+```json
+{
+  "policy": {
+    "allowedMccs": ["5411", "5412", "5499"]
+  }
+}
+```
+
+| MCC | Category |
+|-----|----------|
+| 5411 | Grocery Stores, Supermarkets |
+| 5412 | Grocery Stores |
+| 5499 | Misc. Food Stores |
+| 5812 | Eating Places, Restaurants |
+| 5942 | Book Stores |
+
+### blockedMccs
+
+Blacklist specific merchant categories. Transactions at these MCCs are declined.
+
+```json
+{
+  "policy": {
+    "blockedMccs": ["7995", "6211", "5933"]
+  }
+}
+```
+
+| MCC | Category |
+|-----|----------|
+| 7995 | Betting, Casino Gambling |
+| 6211 | Securities/Brokers |
+| 5933 | Pawn Shops |
+| 5993 | Cigar Stores, Tobacco |
+
+<Note>
+If both `allowedMccs` and `blockedMccs` are specified, `allowedMccs` takes precedence. A transaction is allowed only if the MCC is in the allowed list and not in the blocked list.
+</Note>
+
+## Merchant Controls
+
+### allowedMerchants
+
+Whitelist specific merchants by name. Only transactions at these merchants are allowed.
+
+```json
+{
+  "policy": {
+    "allowedMerchants": ["amazon.com", "walmart.com", "target.com"]
+  }
+}
+```
+
+Merchant matching uses fuzzy matching to handle variations in merchant names.
+
+### lockToFirstMerchant
+
+After the first transaction, lock the card to that specific merchant. All subsequent transactions must be at the same merchant.
+
+```json
+{
+  "policy": {
+    "lockToFirstMerchant": true
+  }
+}
+```
+
+**Use case**: Subscription payments. Issue a card for a specific service and prevent misuse at other merchants.
+
+## Cooldown Periods
+
+Prevent rapid consecutive transactions by enforcing a wait period between card uses.
+
+```json
+{
+  "policy": {
+    "cooldownMinutes": 30
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `cooldownMinutes` | number | Minimum minutes between transactions |
+
+**Use case**: Prevent runaway spending by AI agents. If an agent makes a purchase, it must wait before making another.
+
+## Card Expiration
+
+Control how long cards remain active.
+
+```json
+{
+  "policy": {
+    "ttlMinutes": 60,
+    "ttlDays": 7
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ttlMinutes` | number | Card expires after N minutes |
+| `ttlDays` | number | Card expires after N days |
+
+## Example Configurations
+
+<Tabs>
+  <Tab title="High-Trust Agent">
+    Minimal restrictions for a trusted automation.
+
+    ```json
+    {
+      "policy": {
+        "requireIntent": false,
+        "limits": {
+          "perAuth": 100000,
+          "perDay": 500000
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Supervised Agent">
+    Requires approval for significant purchases.
+
+    ```json
+    {
+      "policy": {
+        "requireIntent": true,
+        "requireApproval": true,
+        "autoApproveBelow": 2500,
+        "limits": {
+          "perAuth": 25000,
+          "perDay": 100000
+        },
+        "cooldownMinutes": 15
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Restricted Card">
+    Locked to specific merchant category with tight limits.
+
+    ```json
+    {
+      "policy": {
+        "requireIntent": true,
+        "requireAttestation": true,
+        "attestationWindowMinutes": 10,
+        "allowedMccs": ["5812"],
+        "limits": {
+          "perAuth": 5000,
+          "perDay": 10000
+        },
+        "lockToFirstMerchant": true
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Subscription Card">
+    For recurring payments at a single merchant.
+
+    ```json
+    {
+      "policy": {
+        "lockToFirstMerchant": true,
+        "limits": {
+          "perAuth": 10000,
+          "perMonth": 10000
+        }
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Setting Policies
+
+### On Customer Creation
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/customers \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "consumer",
+    "email": "alice@example.com",
+    "name": { "first": "Alice", "last": "Smith" },
+    "policy": {
+      "requireIntent": true,
+      "limits": {
+        "perDay": 100000
+      }
+    }
+  }'
+```
+
+### On Agent Creation
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/agents \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": "cust_xxx",
+    "name": "Shopping Agent",
+    "policy": {
+      "requireApproval": true,
+      "autoApproveBelow": 5000,
+      "blockedMccs": ["7995"]
+    }
+  }'
+```
+
+### On Card Creation
+
+```bash
+curl -X POST https://api.useproxy.ai/v1/cards \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": "cust_xxx",
+    "agentId": "agent_xxx",
+    "policy": {
+      "allowedMerchants": ["amazon.com"],
+      "limits": {
+        "perAuth": 2500
+      }
+    }
+  }'
+```
+
+### Updating Policies
+
+```bash
+curl -X PATCH https://api.useproxy.ai/v1/agents/agent_xxx \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "policy": {
+      "limits": {
+        "perAuth": 7500
+      }
+    }
+  }'
+```
+
+## Policy Reference
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `requireIntent` | boolean | `false` | Require intent before card access |
+| `requireAttestation` | boolean | `false` | Require attestation before card access |
+| `requireApproval` | boolean | `false` | Require human approval for intents |
+| `autoApproveBelow` | number | - | Auto-approve intents under this amount (cents) |
+| `attestationWindowMinutes` | number | `15` | Minutes attestation remains valid |
+| `cooldownMinutes` | number | - | Minimum minutes between transactions |
+| `ttlMinutes` | number | - | Card expires after N minutes |
+| `ttlDays` | number | - | Card expires after N days |
+| `limits.perAuth` | number | - | Max per-transaction amount (cents) |
+| `limits.perDay` | number | - | Max daily spend (cents) |
+| `limits.perMonth` | number | - | Max monthly spend (cents) |
+| `allowedMccs` | array | - | Whitelist of allowed MCCs |
+| `blockedMccs` | array | - | Blacklist of blocked MCCs |
+| `allowedMerchants` | array | - | Whitelist of allowed merchant names |
+| `lockToFirstMerchant` | boolean | `false` | Lock card to first merchant |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Agents" icon="robot" href="/concepts/agents">
+    Configure agent policies
+  </Card>
+  <Card title="Cards" icon="credit-card" href="/concepts/cards">
+    Apply card-level controls
+  </Card>
+  <Card title="Intents" icon="bullseye" href="/concepts/intents">
+    Understand intent workflows
+  </Card>
+  <Card title="Transactions" icon="receipt" href="/concepts/transactions">
+    View transaction history
+  </Card>
+</CardGroup>

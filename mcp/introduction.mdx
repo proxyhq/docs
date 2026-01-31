@@ -1,0 +1,108 @@
+---
+title: "MCP Overview"
+description: "Enable AI agents to manage Proxy cards through the Model Context Protocol"
+---
+
+# Model Context Protocol (MCP)
+
+The Proxy MCP server enables AI assistants like Claude, Cursor, and other MCP-compatible tools to interact with your Proxy account directly through natural conversation.
+
+## What is MCP?
+
+The [Model Context Protocol](https://modelcontextprotocol.io) is an open standard developed by Anthropic that allows AI models to securely connect to external data sources and tools. Instead of copying API documentation and writing code, you can simply ask your AI assistant to perform actions.
+
+## Why Use MCP with Proxy?
+
+<CardGroup cols={2}>
+  <Card title="Natural Language" icon="comments">
+    Ask "Create a card for my shopping agent" instead of writing API calls
+  </Card>
+  <Card title="Context-Aware" icon="brain">
+    The AI understands your account state and can chain operations intelligently
+  </Card>
+  <Card title="Secure" icon="shield">
+    OAuth 2.0 authentication ensures your credentials stay safe
+  </Card>
+  <Card title="Real-Time" icon="bolt">
+    Manage cards, agents, and transactions directly from your IDE or chat interface
+  </Card>
+</CardGroup>
+
+## Example Interactions
+
+Once configured, you can have conversations like:
+
+```
+You: Create a new agent called "Research Assistant" with a $500 monthly limit
+
+Claude: I've created the agent "Research Assistant" with ID agent_abc123.
+        It has a spending limit of $500/month. Would you like me to create
+        a card for this agent?
+
+You: Yes, create a virtual card for it
+
+Claude: Done! Card created (ending in 4242). The agent can now use this
+        card for purchases. Should I configure any spending policies?
+```
+
+## Available Operations
+
+The Proxy MCP server exposes 29 tools across these categories:
+
+| Category | Description |
+|----------|-------------|
+| **Onboarding** | Start onboarding, check status |
+| **KYC** | Get verification links, check KYC status |
+| **Agents** | Create, list, update, pause, disable agents |
+| **Cards** | Create, list, lock, unlock, cancel cards |
+| **Intents** | Declare spending intents (agent-only) |
+| **Access** | Request card credentials (agent-only) |
+| **Transactions** | View transaction history |
+| **Disputes** | File and manage disputes |
+| **Funding** | Get deposit instructions, view funding history |
+| **Balance** | Check available balance |
+
+## Authentication Types
+
+The MCP server supports two authentication modes:
+
+### User Authentication
+
+Authenticated via Clerk JWT tokens. Users can:
+- Manage agents and cards
+- Configure policies
+- View all transactions
+- Handle disputes and funding
+
+### Agent Authentication
+
+Authenticated via agent tokens (`agt_xxx`). Agents can:
+- Create spending intents
+- Request card access (retrieve credentials)
+- View their own cards and transactions
+- Check balance
+
+## Architecture
+
+```
++----------------+     +------------------+     +----------------+
+|  Claude/Cursor | --> |  Proxy MCP       | --> |  Proxy API     |
+|  (MCP Client)  |     |  Server          |     |  (Convex)      |
++----------------+     +------------------+     +----------------+
+        |                      |
+        |  JSON-RPC 2.0       |  Authenticated
+        |  over HTTP          |  mutations/queries
+```
+
+The MCP server acts as a bridge between AI assistants and the Proxy platform, translating natural language requests into authenticated API calls.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/mcp/quickstart">
+    Set up the MCP server in your IDE
+  </Card>
+  <Card title="Tools Reference" icon="wrench" href="/mcp/tools">
+    Complete tool documentation
+  </Card>
+</CardGroup>

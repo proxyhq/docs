@@ -24,6 +24,9 @@
   "background": {
     "decoration": "gradient"
   },
+  "contextual": {
+    "options": ["copy", "view", "chatgpt", "claude"]
+  },
   "navigation": {
     "tabs": [
       {
@@ -45,6 +48,10 @@
               "concepts/agents",
               "concepts/cards",
               "concepts/intents",
+              "concepts/policies",
+              "concepts/transactions",
+              "concepts/balances",
+              "concepts/disputes",
               "concepts/webhooks"
             ]
           }
@@ -59,6 +66,33 @@
             "pages": [
               "api-reference/introduction",
               "api-reference/authentication"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "icon": "brackets-curly",
+            "pages": [
+              "api-reference/endpoints/customers",
+              "api-reference/endpoints/agents",
+              "api-reference/endpoints/cards",
+              "api-reference/endpoints/intents",
+              "api-reference/endpoints/transactions",
+              "api-reference/endpoints/balances",
+              "api-reference/endpoints/webhooks"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "MCP",
+        "groups": [
+          {
+            "group": "MCP Server",
+            "icon": "plug",
+            "pages": [
+              "mcp/introduction",
+              "mcp/quickstart",
+              "mcp/tools"
             ]
           }
         ]
@@ -89,6 +123,9 @@
     "auth": {
       "method": "key",
       "name": "Authorization"
+    },
+    "playground": {
+      "mode": "simple"
     }
   }
 }

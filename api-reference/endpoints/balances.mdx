@@ -1,0 +1,249 @@
+---
+title: "Balances"
+description: "Query customer balances and funding information"
+---
+
+# Balances
+
+Balances represent the available spending power for a customer. Each customer has a balance that tracks available funds, pending charges, and posted transactions.
+
+## The Balance Object
+
+```json
+{
+  "currency": "usd",
+  "available": 50000,
+  "pending": 2500,
+  "posted": 15000,
+  "limit": 100000,
+  "updatedAt": "2024-01-15T12:00:00.000Z"
+}
+```
+
+### Attributes
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `currency` | string | Currency code (e.g., `usd`) |
+| `available` | number | Available spending power in minor units |
+| `pending` | number | Pending/held amounts in minor units |
+| `posted` | number | Posted (settled) charges in minor units |
+| `limit` | number | Credit limit (if applicable) |
+| `updatedAt` | string | ISO 8601 last update timestamp |
+
+<Note>
+All amounts are in minor units (cents for USD). For example, `50000` represents $500.00.
+</Note>
+
+---
+
+## Get Customer Balance
+
+<div className="api-method-badge get">GET</div>
+
+```
+GET /v1/customers/:id/balances
+```
+
+Retrieves the current balance for a customer.
+
+### Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | string | The customer ID (e.g., `cus_abc123`) |
+
+### Example
+
+<CodeGroup>
+```bash cURL
+curl https://api.useproxy.ai/v1/customers/cus_abc123/balances \
+  -H "Authorization: Bearer sk_live_xxxxx"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.useproxy.ai/v1/customers/cus_abc123/balances', {
+  headers: {
+    'Authorization': 'Bearer sk_live_xxxxx'
+  }
+});
+
+const balance = await response.json();
+console.log(`Available: $${balance.available / 100}`);
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://api.useproxy.ai/v1/customers/cus_abc123/balances',
+    headers={'Authorization': 'Bearer sk_live_xxxxx'}
+)
+
+balance = response.json()
+print(f"Available: ${balance['available'] / 100}")
+```
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "currency": "usd",
+  "available": 50000,
+  "pending": 2500,
+  "posted": 15000,
+  "limit": 100000,
+  "updatedAt": "2024-01-15T12:00:00.000Z"
+}
+```
+
+---
+
+## Get Funding Instructions
+
+<div className="api-method-badge get">GET</div>
+
+```
+GET /v1/customers/:id/funding-instructions
+```
+
+Retrieves funding instructions for a customer. Customers can add funds by sending stablecoins to the provided address.
+
+### Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | string | The customer ID |
+
+### Example
+
+<CodeGroup>
+```bash cURL
+curl https://api.useproxy.ai/v1/customers/cus_abc123/funding-instructions \
+  -H "Authorization: Bearer sk_live_xxxxx"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.useproxy.ai/v1/customers/cus_abc123/funding-instructions', {
+  headers: {
+    'Authorization': 'Bearer sk_live_xxxxx'
+  }
+});
+
+const funding = await response.json();
+console.log(`Send ${funding.currency.toUpperCase()} to: ${funding.address}`);
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://api.useproxy.ai/v1/customers/cus_abc123/funding-instructions',
+    headers={'Authorization': 'Bearer sk_live_xxxxx'}
+)
+
+funding = response.json()
+print(f"Send {funding['currency'].upper()} to: {funding['address']}")
+```
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "currency": "usdc",
+  "network": "base",
+  "address": "0x1234567890abcdef1234567890abcdef12345678"
+}
+```
+
+### Funding Instructions Attributes
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `currency` | string | Accepted currency (e.g., `usdc`) |
+| `network` | string | Blockchain network (e.g., `base`, `ethereum`, `polygon`) |
+| `address` | string | Deposit address |
+
+---
+
+## Balance Calculation
+
+The balance is calculated as follows:
+
+```
+available = limit - pending - posted
+```
+
+Where:
+- **limit**: The total credit limit or funded amount
+- **pending**: Authorized but not yet settled transactions
+- **posted**: Settled transactions
+
+### Example
+
+```
+Credit Limit:    $1,000.00
+Posted Charges:   -$150.00
+Pending Holds:     -$50.00
+                 ---------
+Available:        $800.00
+```
+
+---
+
+## Supported Networks
+
+Proxy supports funding via stablecoins on multiple networks:
+
+| Network | Chain ID | Token |
+|---------|----------|-------|
+| Base | 8453 | USDC |
+| Ethereum | 1 | USDC |
+| Polygon | 137 | USDC |
+| Arbitrum | 42161 | USDC |
+
+<Note>
+Funding instructions are generated after a customer completes KYC verification. If no funding instructions are returned, the customer may need to complete verification first.
+</Note>
+
+---
+
+## Best Practices
+
+### 1. Check Balance Before Large Transactions
+
+Before initiating a large transaction, verify the customer has sufficient balance:
+
+```javascript
+const balance = await getCustomerBalance(customerId);
+const transactionAmount = 50000; // $500
+
+if (balance.available < transactionAmount) {
+  console.log('Insufficient funds');
+  return;
+}
+```
+
+### 2. Monitor Pending Holds
+
+Pending holds reduce available balance. They are released when:
+- The transaction settles (becomes posted)
+- The authorization expires (typically 7 days)
+- The merchant releases the hold
+
+### 3. Display Balance to Users
+
+Convert minor units to display currency:
+
+```javascript
+function formatBalance(amount, currency = 'usd') {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency.toUpperCase()
+  }).format(amount / 100);
+}
+
+console.log(formatBalance(50000)); // "$500.00"
+```

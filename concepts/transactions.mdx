@@ -1,0 +1,273 @@
+---
+title: "Transactions"
+description: "Card spend events from authorization through settlement"
+---
+
+# Transactions
+
+A **Transaction** represents a card spend event on the payment network. Transactions flow through multiple stages from initial authorization to final settlement.
+
+## Transaction Lifecycle
+
+<Tabs>
+  <Tab title="Authorization">
+    When a card is used at a merchant, the payment network sends an authorization request. Proxy evaluates the request against policies and available funds.
+
+    ```
+    Card Used → Authorization Request → Policy Check → Approve/Decline
+    ```
+
+    - **Approved**: A hold is placed on funds equal to the authorized amount
+    - **Declined**: No hold is placed; transaction is rejected
+  </Tab>
+  <Tab title="Settlement">
+    After authorization, the merchant settles the transaction (typically 1-3 days later). The held funds are released and the final amount is posted.
+
+    ```
+    Authorization Hold → Merchant Settlement → Hold Released → Amount Posted
+    ```
+
+    Settlement amounts may differ from authorization (e.g., tips, fuel purchases).
+  </Tab>
+  <Tab title="Special Cases">
+    - **Partial capture**: Merchant settles less than authorized
+    - **Over-capture**: Merchant settles more (allowed for specific MCCs like restaurants)
+    - **Force capture**: Settlement without prior authorization (offline transactions)
+    - **Refunds**: Negative settlement amounts credited to the balance
+  </Tab>
+</Tabs>
+
+## Transaction Types
+
+| Type | Description |
+|------|-------------|
+| `authorization` | Initial approval request from merchant |
+| `settlement` | Final capture of authorized amount |
+| `refund` | Credit returned to cardholder |
+| `reversal` | Authorization cancelled before settlement |
+| `force_capture` | Settlement without prior authorization |
+
+## Transaction Statuses
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Authorization approved, awaiting settlement |
+| `settled` | Transaction completed and posted |
+| `declined` | Authorization was rejected |
+| `reversed` | Authorization cancelled; hold released |
+
+## Transaction Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique transaction identifier |
+| `cardId` | string | Card used for transaction |
+| `customerId` | string | Owner of the card |
+| `agentId` | string | Agent that initiated the spend |
+| `intentId` | string | Matched intent (if any) |
+| `amount` | number | Transaction amount in cents |
+| `currency` | string | Currency code (e.g., `USD`) |
+| `status` | string | Current transaction status |
+| `type` | string | Transaction type |
+| `merchant` | object | Merchant details |
+| `createdAt` | string | Timestamp of transaction creation |
+
+### Merchant Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Merchant name |
+| `mcc` | string | Merchant Category Code |
+| `city` | string | Merchant city |
+| `country` | string | Merchant country code |
+| `category` | string | Human-readable category |
+
+## Intent Matching
+
+When a transaction occurs, Proxy automatically matches it against pending intents for the card.
+
+### Matching Rules
+
+<CardGroup cols={2}>
+  <Card title="Amount Tolerance" icon="dollar-sign">
+    Transaction amount must be within the configured tolerance of the expected amount (default: +/- 10%)
+  </Card>
+  <Card title="Merchant Match" icon="store">
+    Fuzzy matching on merchant name if `expectedMerchant` was specified
+  </Card>
+  <Card title="MCC Match" icon="tags">
+    MCC must be in `expectedMccs` list if specified
+  </Card>
+  <Card title="Time Window" icon="clock">
+    Transaction must occur before intent expiration
+  </Card>
+</CardGroup>
+
+### Match Outcomes
+
+| Status | Description |
+|--------|-------------|
+| `matched` | Transaction matched all intent criteria |
+| `mismatched` | Transaction occurred but didn't match expectations |
+| `expired` | Intent expired before any transaction |
+
+## Viewing Transactions
+
+### List Transactions
+
+```bash
+curl https://api.useproxy.ai/v1/transactions \
+  -H "Authorization: Bearer your_api_key"
+```
+
+Response:
+
+```json
+{
+  "transactions": [
+    {
+      "id": "txn_abc123",
+      "cardId": "card_xyz789",
+      "amount": 4250,
+      "currency": "USD",
+      "status": "settled",
+      "type": "settlement",
+      "merchant": {
+        "name": "AMAZON.COM",
+        "mcc": "5942",
+        "city": "SEATTLE",
+        "country": "US",
+        "category": "Book Stores"
+      },
+      "intentId": "int_def456",
+      "intentStatus": "matched",
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "cursor": "next_page_token"
+}
+```
+
+### Filter by Card
+
+```bash
+curl "https://api.useproxy.ai/v1/transactions?cardId=card_xyz789" \
+  -H "Authorization: Bearer your_api_key"
+```
+
+### Filter by Status
+
+```bash
+curl "https://api.useproxy.ai/v1/transactions?status=pending" \
+  -H "Authorization: Bearer your_api_key"
+```
+
+### Filter by Date Range
+
+```bash
+curl "https://api.useproxy.ai/v1/transactions?startDate=2024-01-01&endDate=2024-01-31" \
+  -H "Authorization: Bearer your_api_key"
+```
+
+### Get Single Transaction
+
+```bash
+curl https://api.useproxy.ai/v1/transactions/txn_abc123 \
+  -H "Authorization: Bearer your_api_key"
+```
+
+## Transaction Webhooks
+
+Subscribe to transaction events for real-time notifications:
+
+| Event | Description |
+|-------|-------------|
+| `transaction.created` | New authorization approved or declined |
+| `transaction.updated` | Authorization modified (incremental auth, partial reversal) |
+| `transaction.settled` | Transaction settled and posted |
+| `transaction.declined` | Authorization was declined |
+
+### Webhook Payload
+
+```json
+{
+  "id": "evt_abc123",
+  "type": "transaction.created",
+  "createdAt": "2024-01-15T10:30:00Z",
+  "data": {
+    "transactionId": "txn_xyz789",
+    "cardId": "card_abc123",
+    "amount": 4250,
+    "currency": "USD",
+    "status": "pending",
+    "type": "authorization",
+    "merchant": {
+      "name": "AMAZON.COM",
+      "mcc": "5942"
+    }
+  }
+}
+```
+
+## Decline Reasons
+
+When a transaction is declined, the response includes a reason:
+
+| Reason | Description |
+|--------|-------------|
+| `insufficient_funds` | Not enough available balance |
+| `card_spending_limit_exceeded` | Exceeds card limit |
+| `blocked_merchant` | Merchant is blocked |
+| `blocked_mcc` | MCC is restricted |
+| `card_frozen` | Card is temporarily frozen |
+| `card_canceled` | Card has been closed |
+| `policy_violation` | Transaction violates policy rules |
+| `no_valid_intent` | No matching intent found (when required) |
+
+## Adding a Memo
+
+Attach a note to a transaction for record-keeping:
+
+```bash
+curl -X PATCH https://api.useproxy.ai/v1/transactions/txn_abc123 \
+  -H "Authorization: Bearer your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "memo": "Office supplies for Q1 project"
+  }'
+```
+
+## Uploading Receipts
+
+Attach a receipt to a transaction:
+
+```bash
+curl -X PUT https://api.useproxy.ai/v1/transactions/txn_abc123/receipt \
+  -H "Authorization: Bearer your_api_key" \
+  -F "receipt=@receipt.pdf"
+```
+
+Retrieve a receipt:
+
+```bash
+curl https://api.useproxy.ai/v1/transactions/txn_abc123/receipt \
+  -H "Authorization: Bearer your_api_key" \
+  -o receipt.pdf
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Intents" icon="bullseye" href="/concepts/intents">
+    Declare purchase intents
+  </Card>
+  <Card title="Disputes" icon="shield" href="/concepts/disputes">
+    Handle transaction disputes
+  </Card>
+  <Card title="Balances" icon="wallet" href="/concepts/balances">
+    Understand fund management
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/concepts/webhooks">
+    Get real-time notifications
+  </Card>
+</CardGroup>
