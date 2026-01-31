@@ -1,0 +1,157 @@
+---
+title: "KYC"
+description: "Know Your Customer verification for card issuance"
+---
+
+# KYC
+
+**KYC (Know Your Customer)** verification is required before customers can issue cards. Proxy uses Rain's KYC infrastructure to verify customer identity and comply with financial regulations.
+
+## Why KYC?
+
+Card issuance is a regulated activity. Before a customer can:
+- Issue virtual cards
+- Fund their account
+- Make transactions
+
+They must complete identity verification to prevent fraud and money laundering.
+
+## Customer Types
+
+<Tabs>
+  <Tab title="Consumer (Individual)">
+    Individual customers complete KYC by providing:
+    - Full legal name
+    - Date of birth
+    - Social Security Number (SSN)
+    - Address
+    - Government ID verification
+
+    ```bash
+    curl -X POST https://api.useproxy.ai/v1/kyc/applications \
+      -H "Authorization: Bearer your_api_key" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "customerId": "cust_xxx",
+        "application": {
+          "firstName": "Alice",
+          "lastName": "Smith",
+          "dateOfBirth": "1990-01-15",
+          "ssn": "123-45-6789",
+          "address": {
+            "line1": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94102",
+            "country": "US"
+          }
+        }
+      }'
+    ```
+  </Tab>
+  <Tab title="Corporate (Business)">
+    Business customers require additional documentation:
+    - Business legal name and EIN
+    - Business address
+    - Formation documents
+    - Beneficial owner information (KYB)
+    - UBO identity verification
+  </Tab>
+</Tabs>
+
+## Application Statuses
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Application submitted, under review |
+| `approved` | Verified, customer can issue cards |
+| `needsInformation` | Additional info required |
+| `needsVerification` | Identity verification needed |
+| `manualReview` | Flagged for manual review |
+| `denied` | Application rejected |
+| `locked` | Account locked |
+
+## KYC Flow
+
+<Steps>
+  <Step title="Create Customer">
+    Create a customer record with basic info.
+  </Step>
+  <Step title="Submit Application">
+    Submit KYC application with identity details.
+  </Step>
+  <Step title="Complete Verification">
+    Customer completes any required verification steps via the completion link.
+  </Step>
+  <Step title="Check Status">
+    Poll application status or receive webhook notification.
+  </Step>
+  <Step title="Issue Cards">
+    Once approved, customer can issue virtual cards.
+  </Step>
+</Steps>
+
+## Checking Status
+
+```bash
+curl https://api.useproxy.ai/v1/kyc/applications/app_xxx \
+  -H "Authorization: Bearer your_api_key"
+```
+
+Response:
+```json
+{
+  "id": "app_xxx",
+  "customerId": "cust_xxx",
+  "status": "needsVerification",
+  "reason": "Identity verification required",
+  "completionLink": "https://verify.useproxy.ai/complete/xyz789"
+}
+```
+
+## Completion Link
+
+When status is `needsInformation` or `needsVerification`, the response includes a `completionLink`. Direct your customer to this URL to complete the verification process.
+
+<Note>
+Completion links are single-use and expire after 24 hours. Request a new application status to get a fresh link if needed.
+</Note>
+
+## KYB (Business Verification)
+
+For corporate customers, KYB (Know Your Business) adds:
+
+- **Business documents** - Formation docs, EIN letter
+- **Beneficial owners** - Individuals who own 25%+ of the business
+- **UBO verification** - Identity verification for each beneficial owner via Persona
+
+### Beneficial Owner Verification Status
+
+| Status | Description |
+|--------|-------------|
+| `not_started` | Verification not initiated |
+| `pending` | Verification in progress |
+| `approved` | Identity verified |
+| `denied` | Verification failed |
+| `needs_review` | Manual review required |
+
+## Webhooks
+
+Subscribe to KYC events for real-time updates:
+
+| Event | Description |
+|-------|-------------|
+| `kyc.application.approved` | Customer approved for card issuance |
+| `kyc.application.denied` | Application was rejected |
+| `kyc.application.needs_info` | Additional information required |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Customers" icon="user" href="/concepts/customers">
+    Learn about customer types
+  </Card>
+  <Card title="Cards" icon="credit-card" href="/concepts/cards">
+    Issue cards after KYC approval
+  </Card>
+</CardGroup>
