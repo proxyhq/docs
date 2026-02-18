@@ -60,6 +60,10 @@
     {
       "name": "Webhooks",
       "description": "Configure outbound webhook subscriptions"
+    },
+    {
+      "name": "Checkout",
+      "description": "Secure checkout flows that avoid exposing raw card details to agents"
     }
   ],
   "paths": {
@@ -887,8 +891,8 @@
         "tags": [
           "Cards"
         ],
-        "summary": "Get card details (PAN, CVV)",
-        "description": "Retrieve sensitive card details (PAN, CVV) after policy evaluation. Requires intent if policy mandates it.",
+        "summary": "Deprecated: Get card details (PAN, CVV)",
+        "description": "Deprecated. Use checkout endpoints instead: /checkout/fill for browser flows or /checkout/execute for server-side adapter flows.",
         "operationId": "getCardDetails",
         "parameters": [
           {
@@ -950,7 +954,8 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/cards/{cardId}/policy": {
@@ -2035,6 +2040,249 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/cards/{cardId}/transactions": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "List card transactions",
+        "description": "List transactions for a specific card.",
+        "operationId": "listCardTransactions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CardId"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorizedAfter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorizedBefore",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Card transactions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardTransactionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/checkout/fill": {
+      "post": {
+        "tags": [
+          "Checkout"
+        ],
+        "summary": "Generate secure checkout fill script",
+        "description": "Returns a browser-executed script that fills payment fields without exposing PAN/CVV to the model context.",
+        "operationId": "checkoutFill",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutFillRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Checkout fill script",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutFillResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/checkout/execute": {
+      "post": {
+        "tags": [
+          "Checkout"
+        ],
+        "summary": "Execute server-side checkout",
+        "description": "Executes a merchant adapter server-side without exposing raw card details to the model.",
+        "operationId": "checkoutExecute",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutExecuteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Execution result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutExecuteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/checkout/fill-data": {
+      "post": {
+        "tags": [
+          "Checkout"
+        ],
+        "summary": "Redeem checkout fill token",
+        "description": "Used by the browser fill script with a short-lived one-time token to retrieve card fields.",
+        "operationId": "checkoutFillData",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutFillDataRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Card fields payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutFillDataResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/checkout/fill-result": {
+      "post": {
+        "tags": [
+          "Checkout"
+        ],
+        "summary": "Submit checkout fill result",
+        "description": "Used by the browser fill script to report success/failure telemetry.",
+        "operationId": "checkoutFillResult",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutFillResultRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           }
         }
       }
@@ -3656,6 +3904,234 @@
         "required": [
           "decision",
           "reasons"
+        ]
+      },
+      "CardTransactionsResponse": {
+        "type": "object",
+        "properties": {
+          "transactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transaction"
+            }
+          },
+          "cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "transactions"
+        ]
+      },
+      "CheckoutFieldHints": {
+        "type": "object",
+        "properties": {
+          "cardNumber": {
+            "type": "string"
+          },
+          "expiry": {
+            "type": "string"
+          },
+          "expiryMonth": {
+            "type": "string"
+          },
+          "expiryYear": {
+            "type": "string"
+          },
+          "cvv": {
+            "type": "string"
+          },
+          "cardholderName": {
+            "type": "string"
+          },
+          "postalCode": {
+            "type": "string"
+          }
+        }
+      },
+      "CheckoutFillRequest": {
+        "type": "object",
+        "properties": {
+          "intentId": {
+            "type": "string"
+          },
+          "cardId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pageUrl": {
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "fieldHints": {
+            "$ref": "#/components/schemas/CheckoutFieldHints"
+          }
+        },
+        "required": [
+          "intentId",
+          "cardId"
+        ]
+      },
+      "CheckoutFillResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "fillScript": {
+            "type": "string"
+          },
+          "detectionScript": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer"
+          },
+          "scriptId": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "scriptId",
+          "instructions"
+        ]
+      },
+      "CheckoutExecuteRequest": {
+        "type": "object",
+        "properties": {
+          "intentId": {
+            "type": "string"
+          },
+          "cardId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "merchantId": {
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "merchantParams": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "intentId",
+          "cardId",
+          "merchantId",
+          "idempotencyKey"
+        ]
+      },
+      "CheckoutExecuteResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "transactionId": {
+            "type": "string"
+          },
+          "merchantResponse": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "CheckoutFillDataRequest": {
+        "type": "object",
+        "properties": {
+          "scriptId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scriptId"
+        ]
+      },
+      "CheckoutFillDataResponse": {
+        "type": "object",
+        "properties": {
+          "pan": {
+            "type": "string"
+          },
+          "expMonth": {
+            "type": "string"
+          },
+          "expYear": {
+            "type": "string"
+          },
+          "cvv": {
+            "type": "string"
+          },
+          "cardholderName": {
+            "type": "string"
+          },
+          "postalCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pan",
+          "expMonth",
+          "expYear",
+          "cvv"
+        ]
+      },
+      "CheckoutFillResultRequest": {
+        "type": "object",
+        "properties": {
+          "scriptId": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "fieldsFilled": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fieldsMissed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "error": {
+            "type": "string"
+          },
+          "durationMs": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scriptId",
+          "success"
         ]
       }
     }

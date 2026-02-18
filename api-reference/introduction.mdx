@@ -5,7 +5,7 @@ description: "Overview of the Proxy API"
 
 # API Reference
 
-The Proxy API enables you to programmatically manage customers, agents, cards, and transactions.
+The Proxy API enables you to manage customers, agents, cards, intents, and secure checkout flows.
 
 ## Base URL
 
@@ -13,90 +13,24 @@ The Proxy API enables you to programmatically manage customers, agents, cards, a
 https://api.useproxy.ai/v1
 ```
 
+## Secure Checkout Endpoints
+
+- `POST /checkout/fill` - generate browser fill script (agent-oriented)
+- `POST /checkout/execute` - server-side adapter execution
+- `POST /checkout/fill-data` - one-time token redemption for fill scripts
+- `POST /checkout/fill-result` - fill script result telemetry
+
+## Legacy Endpoint
+
+`POST /cards/{cardId}/details` remains for break-glass use only and is deprecated.
+
 ## Request Format
 
 All requests use JSON bodies and require the `Content-Type: application/json` header.
 
-```bash
-curl -X POST https://api.useproxy.ai/v1/customers \
-  -H "Authorization: Bearer your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{"type": "consumer", "email": "alice@example.com"}'
-```
-
-## Response Format
-
-Responses are JSON with consistent structure:
-
-```json
-{
-  "id": "cust_xxx",
-  "type": "consumer",
-  "email": "alice@example.com",
-  "createdAt": "2024-01-15T10:30:00Z"
-}
-```
-
 ## Errors
 
-Errors return appropriate HTTP status codes with details:
-
-```json
-{
-  "error": {
-    "code": "invalid_request",
-    "message": "Email is required"
-  }
-}
-```
-
-| Status | Description |
-|--------|-------------|
-| 400 | Bad request - invalid parameters |
-| 401 | Unauthorized - invalid API key |
-| 404 | Not found - resource doesn't exist |
-| 429 | Rate limited - too many requests |
-| 500 | Server error |
-
-## Idempotency
-
-For POST requests, include an `Idempotency-Key` header to ensure operations are only performed once:
-
-```bash
-curl -X POST https://api.useproxy.ai/v1/cards \
-  -H "Authorization: Bearer your_api_key" \
-  -H "Idempotency-Key: unique-request-id" \
-  -d '{"customerId": "cust_xxx"}'
-```
-
-Idempotency keys are cached for 24 hours.
-
-## Pagination
-
-List endpoints support pagination:
-
-```bash
-curl "https://api.useproxy.ai/v1/transactions?limit=10&cursor=cur_xxx" \
-  -H "Authorization: Bearer your_api_key"
-```
-
-Response includes pagination info:
-
-```json
-{
-  "data": [...],
-  "hasMore": true,
-  "nextCursor": "cur_yyy"
-}
-```
-
-## Rate Limits
-
-| Tier | Requests/minute |
-|------|-----------------|
-| Standard | 100 |
-| Pro | 1000 |
-| Enterprise | Custom |
+Errors return standard HTTP codes with a machine-readable code and message.
 
 ## Next Steps
 

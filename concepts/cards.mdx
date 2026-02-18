@@ -5,7 +5,7 @@ description: "Virtual spending instruments with policy controls"
 
 # Cards
 
-A **Card** is a virtual spending instrument issued to an agent. Cards have policy controls that determine how they can be used.
+A **Card** is a virtual spending instrument issued to an agent.
 
 ## Card Types
 
@@ -13,28 +13,6 @@ A **Card** is a virtual spending instrument issued to an agent. Cards have polic
 |-------|-------------|
 | `single` | One-time use, auto-closes after first transaction |
 | `multi` | Reusable for multiple transactions |
-
-## Creating a Card
-
-```bash
-curl -X POST https://api.useproxy.ai/v1/cards \
-  -H "Authorization: Bearer your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customerId": "cust_xxx",
-    "agentId": "agent_xxx",
-    "usage": "multi"
-  }'
-```
-
-## Card Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `customerId` | string | Owner of the card |
-| `agentId` | string | Agent assigned to use the card |
-| `usage` | string | `single` or `multi` |
-| `status` | string | Card status |
 
 ## Card Status
 
@@ -44,42 +22,18 @@ curl -X POST https://api.useproxy.ai/v1/cards \
 | `frozen` | Temporarily blocked |
 | `closed` | Permanently deactivated |
 
-## Policy Controls
+## Secure Checkout
 
-Cards can have their own policy overrides:
+Proxy supports two checkout modes:
 
-```json
-{
-  "policy": {
-    "maxAmount": 10000,
-    "allowedMerchants": ["amazon.com"],
-    "lockToFirstMerchant": true
-  }
-}
-```
+| Mode | Best For | Endpoint |
+|------|----------|----------|
+| Browser fill | Standard web checkout forms | `POST /checkout/fill` |
+| Server-side execute | API-backed providers and iframe-heavy flows | `POST /checkout/execute` |
 
-## Accessing Card Details
-
-Card credentials are retrieved via the details endpoint after declaring an intent:
-
-```bash
-curl -X POST https://api.useproxy.ai/v1/cards/card_xxx/details \
-  -H "Authorization: Bearer your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "intentId": "int_xxx",
-    "purpose": "Purchase supplies"
-  }'
-```
-
-Response:
-```json
-{
-  "pan": "4111111111111111",
-  "exp": "12/28",
-  "cvv": "123"
-}
-```
+<Note>
+  `POST /cards/{cardId}/details` is deprecated. Prefer checkout endpoints so card data is not exposed to model context.
+</Note>
 
 ## Card Actions
 
@@ -100,7 +54,14 @@ curl -X POST https://api.useproxy.ai/v1/cards/card_xxx/unfreeze \
 ### Close a Card
 
 ```bash
-curl -X POST https://api.useproxy.ai/v1/cards/card_xxx/close \
+curl -X DELETE https://api.useproxy.ai/v1/cards/card_xxx \
+  -H "Authorization: Bearer your_api_key"
+```
+
+### List Card Transactions
+
+```bash
+curl "https://api.useproxy.ai/v1/cards/card_xxx/transactions?limit=20" \
   -H "Authorization: Bearer your_api_key"
 ```
 
@@ -110,7 +71,7 @@ curl -X POST https://api.useproxy.ai/v1/cards/card_xxx/close \
   <Card title="Intents" icon="bullseye" href="/concepts/intents">
     Declare purchase intents
   </Card>
-  <Card title="Webhooks" icon="webhook" href="/concepts/webhooks">
-    Get real-time notifications
+  <Card title="Transactions" icon="receipt" href="/concepts/transactions">
+    Monitor spend activity
   </Card>
 </CardGroup>

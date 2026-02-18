@@ -5,69 +5,43 @@ description: "Pre-transaction declarations of planned purchases"
 
 # Intents
 
-An **Intent** is a pre-transaction declaration of what an agent plans to purchase. Intents enable policy enforcement before card details are accessed.
+An **Intent** is a pre-transaction declaration of what an agent plans to purchase.
 
 ## Why Intents?
 
-Intents serve several purposes:
+1. Approval workflows for high-risk purchases.
+2. Merchant and amount policy checks before execution.
+3. Audit trail linking purchases to business purpose.
 
-1. **Approval workflows** - Require human approval for large purchases
-2. **Merchant restrictions** - Validate purchases against allowed merchants
-3. **Spending controls** - Enforce limits before transactions occur
-4. **Audit trail** - Document the purpose of every transaction
-
-## Creating an Intent
+## Create an Intent
 
 ```bash
-curl -X POST https://api.useproxy.ai/v1/cards/card_xxx/intents \
+curl -X POST https://api.useproxy.ai/v1/intents \
   -H "Authorization: Bearer your_api_key" \
   -H "Content-Type: application/json" \
   -d '{
-    "purpose": "Purchase office supplies from Amazon",
+    "cardId": "card_xxx",
+    "purpose": "Purchase office supplies",
     "expectedAmount": 5000,
     "expectedMerchant": "Amazon"
   }'
 ```
-
-## Intent Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `purpose` | string | Human-readable description |
-| `expectedAmount` | number | Expected transaction amount (cents) |
-| `expectedMerchant` | string | Expected merchant name |
 
 ## Intent Lifecycle
 
 | Status | Description |
 |--------|-------------|
 | `pending_approval` | Awaiting human approval |
-| `pending` | Approved, awaiting transaction |
-| `matched` | Transaction matched the intent |
-| `mismatched` | Transaction didn't match expectations |
+| `card_issued` | Card is available for checkout |
+| `approved` | Approved for execution |
+| `completed` | Checkout executed successfully |
+| `rejected` | Rejected by policy/human |
 | `expired` | Intent expired before use |
 
-## Matching Rules
+## Execute After Intent
 
-When a transaction occurs, Proxy matches it against pending intents:
-
-- **Amount tolerance**: ±10% of expected amount
-- **Merchant matching**: Fuzzy match on merchant name
-- **Time window**: Intent must not be expired
-
-## Approval Workflows
-
-If `requireApproval` is enabled in the policy, intents start in `pending_approval` status:
-
-```bash
-# Approve an intent
-curl -X POST https://api.useproxy.ai/v1/intents/int_xxx/approve \
-  -H "Authorization: Bearer your_api_key"
-
-# Reject an intent
-curl -X POST https://api.useproxy.ai/v1/intents/int_xxx/reject \
-  -H "Authorization: Bearer your_api_key"
-```
+- Browser form: `POST /checkout/fill`
+- Server-side adapter: `POST /checkout/execute`
 
 ## Next Steps
 
@@ -75,7 +49,7 @@ curl -X POST https://api.useproxy.ai/v1/intents/int_xxx/reject \
   <Card title="Cards" icon="credit-card" href="/concepts/cards">
     Learn about card controls
   </Card>
-  <Card title="Webhooks" icon="webhook" href="/concepts/webhooks">
-    Get notified about intent status
+  <Card title="Policies" icon="shield" href="/concepts/policies">
+    Configure approval and limits
   </Card>
 </CardGroup>

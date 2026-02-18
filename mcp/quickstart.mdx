@@ -1,267 +1,35 @@
 ---
 title: "MCP Quickstart"
-description: "Set up the Proxy MCP server with Claude, Cursor, and other AI tools"
+description: "Set up the Proxy MCP server"
 ---
 
 # MCP Quickstart
 
-This guide walks you through connecting the Proxy MCP server to your preferred AI assistant.
-
-## Prerequisites
-
-- A Proxy account with completed KYC ([sign up](https://dashboard.useproxy.ai))
-- An AI assistant that supports MCP (Claude Desktop, Cursor, etc.)
-
 ## Server URL
 
-The Proxy MCP server is hosted at:
-
-```
-https://mcp.useproxy.ai/api/mcp
-```
+`https://mcp.useproxy.ai/api/mcp`
 
 ## Authentication
 
-The MCP server uses OAuth 2.0 for authentication. You'll need to authorize the connection through your Proxy account.
+- Human workflows: OAuth via your MCP client.
+- Agent workflows: Proxy agent token (`prxy_sk_...`).
 
-<Note>
-  The OAuth flow will redirect you to Proxy's authentication page. After signing in, the connection will be established automatically.
-</Note>
+## Verify Connection
 
-## Setup by Platform
+Ask your client to list tools, then run:
 
-<Tabs>
-  <Tab title="Claude Desktop">
-    ### Claude Desktop Setup
+1. `proxy.user.get`
+2. `proxy.intents.create`
+3. `proxy.intents.get`
+4. `proxy.checkout.fill` or `proxy.checkout.execute`
 
-    1. Open Claude Desktop settings
-    2. Navigate to **Developer** > **Model Context Protocol**
-    3. Click **Add Server**
-    4. Configure the server:
+## Example Flow
 
-    ```json
-    {
-      "mcpServers": {
-        "proxy": {
-          "url": "https://mcp.useproxy.ai/api/mcp",
-          "transport": "streamable-http"
-        }
-      }
-    }
-    ```
-
-    5. Click **Save** and restart Claude Desktop
-    6. When prompted, authorize the connection through Proxy
-
-    ### Verify Connection
-
-    Ask Claude: "What tools do you have from Proxy?"
-
-    Claude should list the available Proxy tools including `agent.create`, `card.list`, etc.
-  </Tab>
-
-  <Tab title="Cursor">
-    ### Cursor Setup
-
-    1. Open Cursor Settings (`Cmd/Ctrl + ,`)
-    2. Navigate to **Features** > **MCP Servers**
-    3. Click **Add new MCP server**
-    4. Enter the configuration:
-
-    **Name:** `proxy`
-    **URL:** `https://mcp.useproxy.ai/api/mcp`
-    **Transport:** `streamable-http`
-
-    5. Save and authorize when prompted
-
-    ### Using in Cursor
-
-    In the Composer or Chat, you can now ask Cursor to interact with Proxy:
-
-    ```
-    Create a new agent called "Code Assistant" for handling software purchases
-    ```
-  </Tab>
-
-  <Tab title="Custom Client">
-    ### Custom MCP Client
-
-    If you're building a custom MCP client, connect using these parameters:
-
-    **Endpoint:** `https://mcp.useproxy.ai/api/mcp`
-    **Transport:** HTTP with Server-Sent Events (SSE)
-    **Authentication:** OAuth 2.0 Bearer token
-
-    #### OAuth Configuration
-
-    Discover OAuth metadata at:
-    ```
-    https://mcp.useproxy.ai/.well-known/oauth-protected-resource
-    ```
-
-    #### Example Connection (Node.js)
-
-    ```javascript
-    import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-    import { StreamableHTTPClientTransport } from "@anthropic-ai/mcp-client";
-
-    const transport = new StreamableHTTPClientTransport({
-      url: "https://mcp.useproxy.ai/api/mcp",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    const client = new Client({
-      name: "my-app",
-      version: "1.0.0",
-    });
-
-    await client.connect(transport);
-
-    // List available tools
-    const tools = await client.listTools();
-    console.log(tools);
-
-    // Call a tool
-    const result = await client.callTool("agent.list", {});
-    console.log(result);
-    ```
-
-    #### JSON-RPC Protocol
-
-    The server uses JSON-RPC 2.0. Direct HTTP calls:
-
-    ```bash
-    # List tools
-    curl -X POST https://mcp.useproxy.ai/api/mcp \
-      -H "Authorization: Bearer your_token" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "tools/list"
-      }'
-
-    # Call a tool
-    curl -X POST https://mcp.useproxy.ai/api/mcp \
-      -H "Authorization: Bearer your_token" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "jsonrpc": "2.0",
-        "id": 2,
-        "method": "tools/call",
-        "params": {
-          "name": "agent.list",
-          "arguments": {}
-        }
-      }'
-    ```
-  </Tab>
-</Tabs>
-
-## First Steps
-
-Once connected, try these example commands:
-
-### Check Your Account Status
-
+```text
+Create intent -> verify intent/card -> run secure checkout -> confirm result
 ```
-What's my onboarding status?
-```
-
-### Create an Agent
-
-```
-Create an agent called "Shopping Assistant" for handling e-commerce purchases
-```
-
-### Issue a Card
-
-```
-Create a virtual card for my Shopping Assistant agent with a $200 daily limit
-```
-
-### Check Balance
-
-```
-What's my current balance?
-```
-
-## Agent Authentication
-
-For autonomous agent workflows, you can authenticate using an agent token instead of user OAuth.
-
-### Generate an Agent Token
-
-1. In your AI assistant, ask:
-   ```
-   Create a token for my Shopping Assistant agent
-   ```
-
-2. Save the returned token securely (it won't be shown again)
-
-### Use Agent Token
-
-Agent tokens can be used directly in the Authorization header:
-
-```bash
-curl -X POST https://mcp.useproxy.ai/api/mcp \
-  -H "Authorization: Bearer agt_xxxxxxxxxxxxx" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "tools/call",
-    "params": {
-      "name": "intent.create",
-      "arguments": {
-        "cardId": "card_xxx",
-        "summary": "Purchase development tools",
-        "expectedAmount": 9900
-      }
-    }
-  }'
-```
-
-<Warning>
-  Agent tokens have limited permissions. They can only access intent, access, card (read-only), transaction (read-only), and balance tools.
-</Warning>
 
 ## Troubleshooting
 
-<AccordionGroup>
-  <Accordion title="Connection refused or timeout">
-    - Verify the server URL is correct: `https://mcp.useproxy.ai/api/mcp`
-    - Check that your network allows outbound HTTPS connections
-    - Try the health endpoint: `curl https://mcp.useproxy.ai/api/mcp/health`
-  </Accordion>
-
-  <Accordion title="Authentication failed">
-    - Ensure you completed the OAuth flow
-    - Try disconnecting and reconnecting the MCP server
-    - Check that your Proxy account is active
-  </Accordion>
-
-  <Accordion title="Tool not found">
-    - Verify the tool name matches exactly (e.g., `agent.create` not `createAgent`)
-    - Ensure you're using the correct authentication type (some tools require user auth, others agent auth)
-  </Accordion>
-
-  <Accordion title="Permission denied">
-    - Check that you own the resource you're trying to access
-    - Agent tokens can only access their own cards and intents
-    - Some operations require user authentication (not agent tokens)
-  </Accordion>
-</AccordionGroup>
-
-## Next Steps
-
-<CardGroup cols={2}>
-  <Card title="Tools Reference" icon="wrench" href="/mcp/tools">
-    Complete documentation of all 29 MCP tools
-  </Card>
-  <Card title="Agents" icon="robot" href="/concepts/agents">
-    Learn about agent architecture
-  </Card>
-</CardGroup>
+- If browser fill fails due iframe/CSP, use `proxy.checkout.execute`.
+- If intent is not ready, ensure status is `card_issued` before checkout.
